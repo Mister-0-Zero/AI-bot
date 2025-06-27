@@ -40,7 +40,7 @@ bot_app.add_handler(CommandHandler("start", cmd_start))
 bot_app.add_handler(CommandHandler("connect_google", cmd_connect))
 
 def run_bot():
-    bot_app.run_polling(handle_signals=False)
+    bot_app.run_polling(stop_signals=[])
 
 threading.Thread(target=run_bot, daemon=True).start()
 
