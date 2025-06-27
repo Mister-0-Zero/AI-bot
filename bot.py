@@ -36,13 +36,11 @@ async def cmd_connect(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(f"Перейди по ссылке для авторизации:\n{url}")
 
-bot_app.add_handler(CommandHandler("start",   cmd_start))
+bot_app.add_handler(CommandHandler("start", cmd_start))
 bot_app.add_handler(CommandHandler("connect_google", cmd_connect))
 
 def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(bot_app.run_polling())
+    bot_app.run_polling(handle_signals=False)
 
 threading.Thread(target=run_bot, daemon=True).start()
 
