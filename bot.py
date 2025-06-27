@@ -1,61 +1,62 @@
-import os
-import threading
-import asyncio
+import os, asyncio, threading
 from fastapi import FastAPI, Request
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 
-# === Загрузка переменных окружения ===
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-RAILWAY_DOMAIN = os.getenv("RAILWAY_DOMAIN")  # Без https://
+# -- переменные окружения -----------------
+load_dotenv()                               # локально берём .env; в Railway просто пропустит
+BOT_TOKEN      = os.environ.get("BOT_TOKEN")
+CLIENT_ID      = os.environ.get("GOOGLE_CLIENT_ID")
+CLIENT_SECRET  = os.environ.get("GOOGLE_CLIENT_SECRET")
+RAILWAY_DOMAIN = os.environ.get("RAILWAY_DOMAIN")   # без https://
 
-# === Проверка переменных окружения ===
+print("RAILWAY DOMAIN =", RAILWAY_DOMAIN)
+print("BOT TOKEN     =", BOT_TOKEN[:8], "...")  # только первые 8 символов
+
 if not BOT_TOKEN:
-    raise ValueError("❌ BOT_TOKEN не найден. Проверь .env или переменные Railway.")
-if not RAILWAY_DOMAIN:
-    raise ValueError("❌ RAILWAY_DOMAIN не найден.")
+    raise RuntimeError("BOT_TOKEN is missing – добавь переменную в Railway!")
 
-# === Telegram Bot ===
-app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
+# -- Telegram-бот -------------------------
+bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Используй /connect_google для подключения Google Диска.")
+async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Привет! Используй /connect_google для подключения Google-Диска.")
 
-async def connect_google(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_connect(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not CLIENT_ID:
-        await update.message.reply_text("⚠️ Google Client ID не настроен.")
+        await update.message.reply_text("Google Client ID не настроен.")
         return
-
-    oauth_url = (
+    url = (
         f"https://accounts.google.com/o/oauth2/auth?"
         f"client_id={CLIENT_ID}&"
         f"redirect_uri=https://{RAILWAY_DOMAIN}/oauth2callback&"
         f"scope=https://www.googleapis.com/auth/drive.readonly&"
         f"response_type=code&access_type=offline&prompt=consent"
     )
-    await update.message.reply_text(f"Перейди по ссылке для авторизации:\n{oauth_url}")
+    await update.message.reply_text(f"Перейди по ссылке для авторизации:\n{url}")
 
-app_bot.add_handler(CommandHandler("start", start))
-app_bot.add_handler(CommandHandler("connect_google", connect_google))
+bot_app.add_handler(CommandHandler("start",   cmd_start))
+bot_app.add_handler(CommandHandler("connect_google", cmd_connect))
 
-# === Запуск Telegram-бота в фоне ===
-def start_bot():
-    asyncio.run(app_bot.run_polling())
+def run_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(bot_app.run_polling())
 
-threading.Thread(target=start_bot, daemon=True).start()
+threading.Thread(target=run_bot, daemon=True).start()
 
-# === FastAPI сервер ===
-app_web = FastAPI()
+# -- FastAPI ------------------------------
+api = FastAPI()
 
-@app_web.get("/")
+@api.get("/")
 async def root():
     return {"message": "Бот работает ✅"}
 
-@app_web.get("/oauth2callback")
+@api.get("/oauth2callback")
 async def oauth2callback(request: Request):
     code = request.query_params.get("code")
     return {"message": f"Авторизация прошла успешно! Код: {code}"}
+
+# для Uvicorn: app_web = api
+app_web = api
