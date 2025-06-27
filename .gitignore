@@ -1,3 +1,2 @@
 /venv/
-/Procfile
-/.gitignore
+/.env
