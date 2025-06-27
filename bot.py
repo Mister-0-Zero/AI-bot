@@ -11,7 +11,7 @@ BOT_TOKEN      = os.getenv("BOT_TOKEN")
 CLIENT_ID      = os.getenv("GOOGLE_CLIENT_ID")
 RAILWAY_DOMAIN = os.getenv("RAILWAY_DOMAIN")
 CLIENT_SECRET  = os.getenv("GOOGLE_CLIENT_SECRET")
-USE_POLLING    = bool(os.getenv("USE_POLLING"))           # без https://
+USE_POLLING    = os.getenv("USE_POLLING", "").lower() in ("1", "true")
 
 logging.info(f"🔗 USE_POLLING = {USE_POLLING}")
 
@@ -44,16 +44,33 @@ bot_app.add_handler(CommandHandler("connect_google", cmd_connect))
 
 # ---------- FastAPI + lifespan ----------
 WEBHOOK_PATH = "/telegram-webhook"
-WEBHOOK_URL  = f"https://{RAILWAY_DOMAIN}{WEBHOOK_PATH}"
+WEBHOOK_URL  = f"https://{RAILWAY_DOMAIN}{WEBHOOK_PATH}" if RAILWAY_DOMAIN else None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if not USE_POLLING and WEBHOOK_URL:
-        logging.info("🔗 Регистрирую webhook %s", WEBHOOK_URL)
+    # инициализируем Telegram-Application один раз
+    await bot_app.initialize()
+
+    if USE_POLLING:
+        # ───── локальная разработка ─────
+        loop = asyncio.get_event_loop()
+        loop.create_task(bot_app.start())
+        loop.create_task(bot_app.updater.start_polling(stop_signals=[]))
+        logging.info("🔁 polling стартовал")
+    else:
+        # ───── прод (Railway) – webhook ─────
+        logging.info("🔗 Регистрирую webhook → %s", WEBHOOK_URL)
         await bot_app.bot.set_webhook(url=WEBHOOK_URL)
-    yield
-    if not USE_POLLING and WEBHOOK_URL:
+
+    yield                                        # ← приложение работает
+
+    # ───── graceful-shutdown ─────
+    if USE_POLLING:
+        await bot_app.updater.stop()
+        await bot_app.stop()
+    else:
         await bot_app.bot.delete_webhook()
+    await bot_app.shutdown())
 
 api = FastAPI(lifespan=lifespan)
 
