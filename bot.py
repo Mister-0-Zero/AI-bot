@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
         await bot_app.stop()
     else:
         await bot_app.bot.delete_webhook()
-    await bot_app.shutdown())
+    await bot_app.shutdown()
 
 api = FastAPI(lifespan=lifespan)
 
