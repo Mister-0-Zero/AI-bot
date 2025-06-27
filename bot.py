@@ -30,13 +30,18 @@ async def cmd_connect(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not CLIENT_ID:
         await update.message.reply_text("⚠️  Google Client ID не настроен.")
         return
+    
+    state = str(update.effective_user.id)
+
     url = (
         f"https://accounts.google.com/o/oauth2/auth?"
         f"client_id={CLIENT_ID}&"
         f"redirect_uri=https://{RAILWAY_DOMAIN}/oauth2callback&"
         f"scope=https://www.googleapis.com/auth/drive.readonly&"
-        f"response_type=code&access_type=offline&prompt=consent"
+        f"response_type=code&access_type=offline&prompt=consent&"
+        f"state={state}"
     )
+
     await update.message.reply_text(f"Перейди по ссылке для авторизации:\n{url}")
 
 bot_app.add_handler(CommandHandler("start", cmd_start))
@@ -81,7 +86,20 @@ async def root():
 @api.get("/oauth2callback")
 async def oauth_callback(request: Request):
     code = request.query_params.get("code")
-    return {"message": f"Код авторизации получен: {code}"}
+    state = request.query_params.get("state")
+
+    if not code or not state:
+        return {"message": "Ошибка: отсутствует код или state"}
+    
+    try:
+        user_id = int(state)
+        await bot_app.bot.send_message(chat_id=user_id, text="✅ Google аккаунт успешно подключён!")
+    except Exception as e:
+        logging.error("Ошибка при отправке в Telegram: %s", e)
+        return {"message": "Ошибка при уведомлении"}
+
+    return {"message": "Авторизация завершена. Можешь закрыть окно."}
+
 
 @api.post(WEBHOOK_PATH)
 async def telegram_webhook(request: Request):
