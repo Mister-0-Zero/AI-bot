@@ -29,7 +29,7 @@ async def cmd_connect_google(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
                 "client_id":    CLIENT_ID,
                 "redirect_uri": f"https://{RAILWAY_DOMAIN}/oauth2callback",
                 "response_type":"code",
-                "scope":        "https://www.googleapis.com/auth/drive.file",
+                "scope":        "openid email profile https://www.googleapis.com/auth/drive.file",
                 "state":        state,
                 "access_type":  "offline",
                 "prompt":       "consent",
