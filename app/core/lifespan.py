@@ -14,17 +14,19 @@ WEBHOOK_PATH = "/telegram-webhook"
 WEBHOOK_URL = f"https://{RAILWAY_DOMAIN}{WEBHOOK_PATH}" if RAILWAY_DOMAIN else None
 
 
-async def wait_for_webhook_ready(url: str, timeout: int = 10):
+async def wait_for_webhook_ready(url: str, timeout: int = 30):
     for i in range(timeout):
         try:
             async with httpx.AsyncClient() as client:
                 r = await client.get(url)
-                if r.status_code == 405 or r.status_code == 200:
-                    return
+                if r.status_code in {200, 405}:
+                    logger.info("Webhook URL стал доступен на %d секунде", i + 1)
+                    return True
         except Exception:
             pass
         await asyncio.sleep(1)
-    raise RuntimeError("Webhook URL не стал доступен за разумное время.")
+    logger.warning("Webhook URL не стал доступен за %s секунд: %s", timeout, url)
+    return False
 
 
 @asynccontextmanager
