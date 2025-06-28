@@ -3,12 +3,14 @@ from fastapi.routing import APIRouter
 from telegram import Update
 from app.telegram.bot import app_tg
 from app.core.logging_config import get_logger
+import os
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
-WEBHOOK_URL = f"https://{os.environ['RAILWAY_DOMAIN']}/telegram-webhook"
+DOMAIN = os.getenv("RAILWAY_DOMAIN", "localhost:8000")
+WEBHOOK_URL = f"https://{DOMAIN}/telegram-webhook"
 
 @router.post("/telegram-webhook")
 async def telegram_webhook(request: Request):
