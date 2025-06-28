@@ -49,5 +49,4 @@ async def lifespan(app: FastAPI):
     yield
 
     if not USE_POLLING:
-        await app_tg.bot.delete_webhook(drop_pending_updates=True)
         await app_tg.shutdown()
