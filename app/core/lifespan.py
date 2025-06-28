@@ -6,7 +6,9 @@ from app.core.config import USE_POLLING, RAILWAY_DOMAIN
 from app.core.db import init_db
 from app.telegram.bot import app_tg
 from app.telegram.handlers import register_handlers
+from app.core.logging_config import get_logger
 
+logger = get_logger(__name__)
 WEBHOOK_PATH = "/telegram-webhook"
 WEBHOOK_URL = f"https://{RAILWAY_DOMAIN}{WEBHOOK_PATH}" if RAILWAY_DOMAIN else None
 
