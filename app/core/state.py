@@ -6,9 +6,7 @@ logger  = logging.getLogger("state")
 
 REDIS_URL = os.getenv("REDIS_URL")  # в продакшене Railway задаёт её автоматически
 
-# ────────────────────────────────────────────────────────────────────────────────
 # 1. Режим с Redis (если переменная есть)
-# ────────────────────────────────────────────────────────────────────────────────
 if REDIS_URL:
     import redis.asyncio as redis   # библиотека ставится однажды: pip install redis>=4.5
 
@@ -24,9 +22,7 @@ if REDIS_URL:
         tid = await _r.getdel(f"oauth_state:{state}")     # атомарно получить и удалить
         return int(tid) if tid else None
 
-# ────────────────────────────────────────────────────────────────────────────────
 # 2. Fallback — обычный словарь (локальный однопроцессный запуск)
-# ────────────────────────────────────────────────────────────────────────────────
 else:
     logger.warning("REDIS_URL not set – falling back to in-memory state cache.")
     _cache: dict[str, tuple[int, datetime]] = {}

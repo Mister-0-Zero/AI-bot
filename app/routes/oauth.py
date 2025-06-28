@@ -16,6 +16,23 @@ logger = get_logger(__name__)
 router = APIRouter()
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 
+async def exchange_code(code: str) -> dict:
+    logger.info("Обмен authorization code на токены")
+    async with httpx.AsyncClient(http2=True, timeout=10) as client:
+        resp = await client.post(
+            TOKEN_ENDPOINT,
+            data={
+                "code": code,
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "redirect_uri": f"https://{RAILWAY_DOMAIN}/oauth2callback",
+                "grant_type": "authorization_code",
+            },
+        )
+        resp.raise_for_status()
+        logger.info("Ответ от Google получен")
+        return resp.json()
+    
 @router.get("/oauth2callback")
 async def oauth2callback(request: Request, session: AsyncSession = Depends(get_session)):
     try:
