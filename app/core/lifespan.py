@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_run, daemon=True).start()
     else:
         await app_tg.initialize()
+        logger.info(f"Установка webhook: {WEBHOOK_URL}")
         await app_tg.bot.set_webhook(url=WEBHOOK_URL)
 
     yield
