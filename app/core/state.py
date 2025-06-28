@@ -1,14 +1,14 @@
 import os, secrets, logging
 from datetime import datetime, timezone, timedelta
 
-TTL_SEC = 600                       # 10 минут
-logger  = logging.getLogger("state")
+TTL_SEC = 600                       
+logger  = logging.getLogger(__name__)
 
-REDIS_URL = os.getenv("REDIS_URL")  # в продакшене Railway задаёт её автоматически
+REDIS_URL = os.getenv("REDIS_URL")  #
 
-# 1. Режим с Redis (если переменная есть)
+
 if REDIS_URL:
-    import redis.asyncio as redis   # библиотека ставится однажды: pip install redis>=4.5
+    import redis.asyncio as redis   
 
     _r = redis.from_url(REDIS_URL, decode_responses=True)
 
@@ -29,6 +29,7 @@ else:
 
     async def put_state(tid: int) -> str:
         state = secrets.token_urlsafe(16)
+        logger.info("State записан: %s → %s", state, tid)
         _cache[state] = (tid, datetime.now(timezone.utc))
         logger.debug("State %s saved to local cache for %s", state, tid)
         return state

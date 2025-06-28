@@ -10,7 +10,7 @@ from app.models.user import User
 from app.telegram.bot import app_tg
 from app.core.logging_config import get_logger
 from app.core.state import pop_state 
-from zoneinfo import ZoneInfo
+from fastapi.responses import RedirectResponse
 
 logger = get_logger(__name__)
 
@@ -107,7 +107,7 @@ async def oauth2callback(request: Request, session: AsyncSession = Depends(get_s
         await app_tg.bot.send_message(chat_id=telegram_id, text="✅ Google аккаунт успешно подключён!")
         logger.info("Уведомление отправлено пользователю: %s", telegram_id)
 
-        return {"message": "Авторизация завершена. Можешь закрыть окно."}
+        return RedirectResponse(url=f"https://t.me/AI_Google_Disk_helper_bot")
 
     except Exception:
         logger.exception("Ошибка в oauth2callback")
