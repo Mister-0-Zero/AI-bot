@@ -77,7 +77,7 @@ async def oauth2callback(request: Request, session: AsyncSession = Depends(get_s
         refresh_token = tokens.get("refresh_token")
         expires_in = tokens.get("expires_in", 0)
         email = tokens.get("email")
-        expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+        expiry = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(tzinfo=None)
 
         user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
         if user is None:
