@@ -36,6 +36,7 @@ async def exchange_code(code: str) -> dict:
         logger.info("Ответ от Google получен")
 
         access_token = tokens.get("access_token")
+        refresh_token = tokens.get("refresh_token")  # ← добавить это
 
         # 2. Получаем информацию о пользователе
         userinfo_resp = await client.get(
@@ -46,11 +47,11 @@ async def exchange_code(code: str) -> dict:
         userinfo = userinfo_resp.json()
         logger.info("Информация о пользователе получена: %s", userinfo.get("email"))
         logger.info("Tokens: %s", tokens)
-        logger.info("Сохраняем пользователя: access_token=%s, refresh_token=%s, email=%s", access_token, refresh_token, email)
+        logger.info("Сохраняем пользователя: access_token=%s, refresh_token=%s, email=%s", access_token, refresh_token, userinfo.get("email"))
 
         return {
-            "access_token": tokens.get("access_token"),
-            "refresh_token": tokens.get("refresh_token"),
+            "access_token": access_token,
+            "refresh_token": refresh_token,
             "expires_in": tokens.get("expires_in"),
             "email": userinfo.get("email"),
         }
