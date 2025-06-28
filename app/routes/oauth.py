@@ -10,6 +10,7 @@ from app.models.user import User
 from app.telegram.bot import app_tg
 from app.core.logging_config import get_logger
 from app.core.state import pop_state 
+from zoneinfo import ZoneInfo
 
 logger = get_logger(__name__)
 
@@ -19,6 +20,7 @@ TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 async def exchange_code(code: str) -> dict:
     logger.info("Обмен authorization code на токены")
     async with httpx.AsyncClient(http2=True, timeout=10) as client:
+        # 1. Получаем токены
         resp = await client.post(
             TOKEN_ENDPOINT,
             data={
@@ -30,8 +32,26 @@ async def exchange_code(code: str) -> dict:
             },
         )
         resp.raise_for_status()
+        tokens = resp.json()
         logger.info("Ответ от Google получен")
-        return resp.json()
+
+        access_token = tokens.get("access_token")
+
+        # 2. Получаем информацию о пользователе
+        userinfo_resp = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        userinfo_resp.raise_for_status()
+        userinfo = userinfo_resp.json()
+        logger.info("Информация о пользователе получена: %s", userinfo.get("email"))
+
+        return {
+            "access_token": tokens.get("access_token"),
+            "refresh_token": tokens.get("refresh_token"),
+            "expires_in": tokens.get("expires_in"),
+            "email": userinfo.get("email"),
+        }
     
 @router.get("/oauth2callback")
 async def oauth2callback(request: Request, session: AsyncSession = Depends(get_session)):
@@ -50,9 +70,10 @@ async def oauth2callback(request: Request, session: AsyncSession = Depends(get_s
 
         tokens = await exchange_code(code)
 
-        access_token = tokens.get("access_token")
+        access_token = tokens["access_token"]
         refresh_token = tokens.get("refresh_token")
         expires_in = tokens.get("expires_in", 0)
+        email = tokens.get("email")
         expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
         user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
@@ -62,16 +83,23 @@ async def oauth2callback(request: Request, session: AsyncSession = Depends(get_s
                 access_token=access_token,
                 refresh_token=refresh_token,
                 token_expiry=expiry,
+                email=email,
             )
             session.add(user)
             logger.info("Создан новый пользователь: %s", telegram_id)
         else:
+            user.email = email or user.email
             user.access_token = access_token
             user.refresh_token = refresh_token or user.refresh_token
             user.token_expiry = expiry
             logger.info("Обновлён пользователь: %s", telegram_id)
 
-        await session.commit()
+        logger.info("Пользователь перед сохранением: %s", user.dict())
+        try:
+            await session.commit()
+        except Exception:
+            logger.exception("Ошибка при сохранении пользователя в БД")
+            raise HTTPException(status_code=500, detail="Ошибка при сохранении в БД")
 
         await app_tg.bot.send_message(chat_id=telegram_id, text="✅ Google аккаунт успешно подключён!")
         logger.info("Уведомление отправлено пользователю: %s", telegram_id)
