@@ -16,69 +16,51 @@ logger = get_logger(__name__)
 router = APIRouter()
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 
-async def exchange_code(code: str) -> dict:
-    logger.info("Обмен authorization code на токены")
-    async with httpx.AsyncClient(http2=True, timeout=10) as client:
-        resp = await client.post(
-            TOKEN_ENDPOINT,
-            data={
-                "code": code,
-                "client_id": CLIENT_ID,
-                "client_secret": CLIENT_SECRET,
-                "redirect_uri": f"https://{RAILWAY_DOMAIN}/oauth2callback",
-                "grant_type": "authorization_code",
-            },
-        )
-        resp.raise_for_status()
-        logger.info("Ответ от Google получен")
-        return resp.json()
-
 @router.get("/oauth2callback")
 async def oauth2callback(request: Request, session: AsyncSession = Depends(get_session)):
-    code = request.query_params.get("code")
-    state = request.query_params.get("state")
-    if not code or not state:
-        logger.warning("Недостающие параметры: code или state")
-        raise HTTPException(status_code=400, detail="Missing code or state")
-
-    telegram_id = await pop_state(state)
-    if telegram_id is None:
-        logger.warning("Просроченный или неверный state")
-        raise HTTPException(status_code=400, detail="Invalid or expired state")
-
     try:
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
+
+        if not code or not state:
+            logger.warning("Недостающие параметры: code или state")
+            raise HTTPException(status_code=400, detail="Missing code or state")
+
+        telegram_id = await pop_state(state)
+        if telegram_id is None:
+            logger.warning("Просроченный или неверный state")
+            raise HTTPException(status_code=400, detail="Invalid or expired state")
+
         tokens = await exchange_code(code)
-    except httpx.HTTPError:
-        logger.exception("Ошибка при получении токенов от Google")
-        raise HTTPException(status_code=502, detail="Failed to fetch tokens from Google")
 
-    access_token = tokens.get("access_token")
-    refresh_token = tokens.get("refresh_token")
-    expires_in = tokens.get("expires_in", 0)
-    expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+        access_token = tokens.get("access_token")
+        refresh_token = tokens.get("refresh_token")
+        expires_in = tokens.get("expires_in", 0)
+        expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
-    user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
-    if user is None:
-        user = User(
-            telegram_id=telegram_id,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_expiry=expiry,
-        )
-        session.add(user)
-        logger.info("Создан новый пользователь: %s", telegram_id)
-    else:
-        user.access_token = access_token
-        user.refresh_token = refresh_token or user.refresh_token
-        user.token_expiry = expiry
-        logger.info("Обновлён пользователь: %s", telegram_id)
+        user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
+        if user is None:
+            user = User(
+                telegram_id=telegram_id,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                token_expiry=expiry,
+            )
+            session.add(user)
+            logger.info("Создан новый пользователь: %s", telegram_id)
+        else:
+            user.access_token = access_token
+            user.refresh_token = refresh_token or user.refresh_token
+            user.token_expiry = expiry
+            logger.info("Обновлён пользователь: %s", telegram_id)
 
-    await session.commit()
+        await session.commit()
 
-    try:
         await app_tg.bot.send_message(chat_id=telegram_id, text="✅ Google аккаунт успешно подключён!")
         logger.info("Уведомление отправлено пользователю: %s", telegram_id)
-    except Exception as e:
-        logger.warning("Ошибка отправки сообщения Telegram: %s", e)
 
-    return {"message": "Авторизация завершена. Можешь закрыть окно."}
+        return {"message": "Авторизация завершена. Можешь закрыть окно."}
+
+    except Exception:
+        logger.exception("Ошибка в oauth2callback")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
