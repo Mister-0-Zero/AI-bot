@@ -8,6 +8,8 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
+WEBHOOK_URL = f"https://{os.environ['RAILWAY_DOMAIN']}/telegram-webhook"
+
 @router.post("/telegram-webhook")
 async def telegram_webhook(request: Request):
     logger.info("Получен webhook от Telegram")
