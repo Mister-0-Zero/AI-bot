@@ -6,3 +6,4 @@ asyncpg>=0.29
 httpx[http2]>=0.26
 python-dotenv>=1.0
 python-multipart>=0.0.9
+redis>=4.0

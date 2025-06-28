@@ -9,6 +9,7 @@ from app.core.state import pop_state
 from app.models.user import User
 from app.telegram.bot import app_tg
 from app.core.logging_config import get_logger
+from app.core.state import pop_state 
 
 logger = get_logger(__name__)
 
@@ -40,7 +41,7 @@ async def oauth2callback(request: Request, session: AsyncSession = Depends(get_s
         logger.warning("Недостающие параметры: code или state")
         raise HTTPException(status_code=400, detail="Missing code or state")
 
-    telegram_id = pop_state(state)
+    telegram_id = await pop_state(state)
     if telegram_id is None:
         logger.warning("Просроченный или неверный state")
         raise HTTPException(status_code=400, detail="Invalid or expired state")
