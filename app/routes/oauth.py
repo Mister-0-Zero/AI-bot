@@ -46,7 +46,6 @@ async def exchange_code(code: str) -> dict:
         userinfo = userinfo_resp.json()
         logger.info("Информация о пользователе получена: %s", userinfo.get("email"))
         logger.info("Tokens: %s", tokens)
-        logger.info("Telegram ID: %s", telegram_id)
         logger.info("Сохраняем пользователя: access_token=%s, refresh_token=%s, email=%s", access_token, refresh_token, email)
 
         return {
