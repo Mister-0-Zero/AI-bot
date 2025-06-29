@@ -52,25 +52,35 @@ async def read_files_from_drive(access_token: str, on_progress: callable) -> lis
 
     return result
 
-# Чтение содержимого файла (пока только .txt)
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
 async def download_and_extract_text(file_id: str, mime_type: str, headers: dict) -> str | None:
     export_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
 
     try:
         async with httpx.AsyncClient() as client:
+            # 1. HEAD-запрос — узнаём размер
+            head_resp = await client.head(export_url, headers=headers)
+            head_resp.raise_for_status()
+            size_str = head_resp.headers.get("Content-Length")
+
+            if size_str and int(size_str) > MAX_FILE_SIZE:
+                logger.warning("Файл %s превышает размер в 10 МБ (%s байт)", file_id, size_str)
+                return None
+
+            # 2. Загружаем файл, если не превышен
             resp = await client.get(export_url, headers=headers)
             resp.raise_for_status()
             content_bytes = resp.content
+
     except Exception as e:
         logger.warning("Ошибка загрузки файла %s: %s", file_id, e)
         return None
 
-    # Пока обрабатываем только .txt
     if mime_type == "text/plain":
         reader = TxtReader()
         return await reader.read(content_bytes)
 
-    # Заглушки под pdf/docx
     elif mime_type == "application/pdf":
         return "[pdf-файл, чтение пока не реализовано]"
 
