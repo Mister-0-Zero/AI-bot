@@ -9,9 +9,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 async def get_valid_access_token(telegram_id: int, session: AsyncSession) -> str:
+    logger.info("Ищу пользователя с telegram_id: %s", telegram_id)
     user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
     if not user:
-        raise RuntimeError("Пользователь не найден")
+        logger.warning("Пользователь не найден в БД: %s", telegram_id)
+    else:
+        logger.info("Пользователь найден: %s", user.email)
 
     now = datetime.now(timezone.utc)
     if user.token_expiry and user.token_expiry > now + timedelta(minutes=1):

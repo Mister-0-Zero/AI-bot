@@ -8,7 +8,11 @@ from app.services.token_refresh import get_valid_access_token
 from app.core.db import get_session
 from app.services.google_drive import read_files_from_drive
 import traceback
+from app.core.logging_config import get_logger
+from sqlmodel import select
+from app.models.user import User
 
+logger = get_logger(__name__)
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     error_text = f"❌ Произошла ошибка: {context.error}"
@@ -16,7 +20,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text(error_text)
 
     # Также логируем стек
-    print("Ошибка:", error_text)
+    logger.warning("Ошибка: %s", error_text)
     traceback.print_exception(type(context.error), context.error, context.error.__traceback__)
 
 
@@ -76,6 +80,13 @@ async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     async with get_session() as session:
         try:
+            logger.info("📨 Получен telegram_id при /load_drive: %s", telegram_id)
+            logger.info("📨 Проверка доступа к токену для telegram_id=%s", telegram_id)
+            logger.info("👤 Тип telegram_id: %s (%s)", telegram_id, type(telegram_id))
+            
+            users = await session.exec(select(User))
+            all_users = users.all()
+            logger.info("📋 Все пользователи: %s", [u.telegram_id for u in all_users])
             access_token = await get_valid_access_token(telegram_id, session)
         except Exception:
             await update.message.reply_text(

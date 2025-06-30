@@ -80,7 +80,6 @@ async def oauth2callback(request: Request):
         email = tokens.get("email")
         expiry = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(tzinfo=None)
 
-        # ← ВОТ ОН async with
         async with get_session() as session:
             user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
 
@@ -105,6 +104,7 @@ async def oauth2callback(request: Request):
 
             try:
                 await session.commit()
+                logger.info("Изменения сохранены в БД")
             except Exception:
                 logger.exception("Ошибка при сохранении пользователя в БД")
                 raise HTTPException(status_code=500, detail="Ошибка при сохранении в БД")
