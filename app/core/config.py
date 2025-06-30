@@ -22,3 +22,12 @@ if not USE_POLLING and not RAILWAY_DOMAIN:
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
+GOOGLE_OAUTH_SCOPES = [
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.file",
+    "openid"
+]
+

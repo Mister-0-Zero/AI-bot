@@ -1,7 +1,7 @@
 from urllib.parse import urlencode
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
-from app.core.config import CLIENT_ID, CLIENT_SECRET, RAILWAY_DOMAIN
+from app.core.config import CLIENT_ID, CLIENT_SECRET, RAILWAY_DOMAIN, GOOGLE_OAUTH_SCOPES as SCOPES
 from app.core.state import put_state          
 from app.telegram.bot import app_tg
 from app.services.token_refresh import get_valid_access_token
@@ -47,27 +47,23 @@ async def cmd_connect_google(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text("⚠️ Google OAuth не настроен на сервере.")
         return
 
-    telegram_id = update.effective_user.id      
+    telegram_id = update.effective_user.id
+    logger.info("🔗 Авторизация запрошена пользователем %s", telegram_id)
 
-    # 1. генерируем state и заносим в Redis
     state = await put_state(telegram_id)
 
-    # 2. формируем ссылку
     auth_url = (
-        "https://accounts.google.com/o/oauth2/v2/auth?"
-        + urlencode(
-            {
-                "client_id":    CLIENT_ID,
-                "redirect_uri": f"https://{RAILWAY_DOMAIN}/oauth2callback",
-                "response_type":"code",
-                "scope":        "openid email profile https://www.googleapis.com/auth/drive.file",
-                "state":        state,
-                "access_type":  "offline",
-                "prompt":       "consent",
-            }
-        )
+        "https://accounts.google.com/o/oauth2/v2/auth?" +
+        urlencode({
+            "client_id": CLIENT_ID,
+            "redirect_uri": f"https://{RAILWAY_DOMAIN}/oauth2callback",
+            "response_type": "code",
+            "scope": " ".join(SCOPES),
+            "state": state,
+            "access_type": "offline",
+            "prompt": "consent",
+        })
     )
-
 
     await app_tg.bot.send_message(
         chat_id=telegram_id,
@@ -88,11 +84,13 @@ async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        await update.message.reply_text("🔄 Начинаю чтение файлов...")
+        logger.info("завожу функцию progress_calback")
 
         async def progress_callback(text: str):
             await update.message.reply_text(text)
 
+        logger.info("Начинаю чтение файлов...")
+        await update.message.reply_text("🔄 Начинаю чтение файлов...")
         files = await read_files_from_drive(access_token, progress_callback)
 
         await update.message.reply_text(f"📚 Всего считано файлов: {len(files)}")
