@@ -13,6 +13,8 @@ TEXT_MIME_TYPES = {
     "application/pdf": "pdf",
 }
 
+MAX_FILE_SIZE = 10 * 1024 * 1024
+
 async def read_files_from_drive(access_token: str, on_progress: callable) -> list[str]:
     logger.info("🚀 Старт read_files_from_drive, access_token=%s...", access_token[:10])
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -42,7 +44,8 @@ async def read_files_from_drive(access_token: str, on_progress: callable) -> lis
             result.append(f"📄 {file_name}:\n{text}...")
         else:
             logger.warning("⚠️ Не удалось прочитать %s", file_name)
-            await on_progress(f"⚠️ Ошибка чтения файла: {file_name}")
+            await on_progress(f"⚠️ Ошибка чтения файла: {file_name}\
+                              поддерживается только txt, pdf, docx")
 
     if not files:
         logger.info("ℹ️ Нет файлов для чтения")
