@@ -62,6 +62,7 @@ async def cmd_connect_google(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
             "state": state,
             "access_type": "offline",
             "prompt": "consent",
+            "include_granted_scopes": "false",
         })
     )
 
