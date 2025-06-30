@@ -1,4 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
+numpy<2 
 torch==2.2.2+cpu
 python-telegram-bot[asyncio]>=21,<23
 fastapi>=0.111
@@ -14,4 +15,3 @@ PyMuPDF>=1.22.0
 filetype>=1.2.0
 huggingface_hub>=0.23
 transformers>=4.41
-bitsandbytes>=0.43

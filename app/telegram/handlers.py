@@ -11,6 +11,7 @@ import traceback
 from telegram import Update
 from telegram.ext import ContextTypes
 from app.telegram.ai_reply import generate_reply
+import asyncio
 
 logger = get_logger(__name__)
 
@@ -25,11 +26,14 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 
+
 async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Отвечает моделью на любое текстовое сообщение, не начинающееся с '/'."""
     user_text = update.message.text
-    await update.message.chat.send_action("typing")   # user feedback
-    answer = await ctx.application.run_in_executor(None, generate_reply, user_text)
+    await update.message.chat.send_action("typing")
+
+    loop = asyncio.get_running_loop()
+    answer = await loop.run_in_executor(None, generate_reply, user_text)
+
     await update.message.reply_text(answer)
 
 
