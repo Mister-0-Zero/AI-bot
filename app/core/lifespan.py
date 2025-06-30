@@ -8,10 +8,45 @@ from app.telegram.bot import app_tg
 from app.telegram.handlers import register_handlers
 from app.core.logging_config import get_logger
 import httpx
+import os
+from functools import partial
+from huggingface_hub import snapshot_download
 
 logger = get_logger(__name__)
 WEBHOOK_PATH = "/telegram-webhook"
 WEBHOOK_URL = f"https://{RAILWAY_DOMAIN}{WEBHOOK_PATH}" if RAILWAY_DOMAIN else None
+MODEL_ID = "sberbank-ai/rugpt3small_based_on_gpt2"
+HF_CACHE_DIR = os.getenv("HF_HOME", "/mnt/models") 
+
+async def _ensure_model():
+    """
+    Скачивает веса модели в HF_CACHE_DIR, если их там ещё нет.
+    Запускается один раз при старте приложения.
+    """
+    try:
+        logger.info("Начало скачивание модели %s в %s", MODEL_ID, HF_CACHE_DIR)
+        target_dir = os.path.join(
+            HF_CACHE_DIR, f"models--{MODEL_ID.replace('/', '--')}"
+        )
+        if os.path.isdir(target_dir):
+            logger.info("✅ Модель уже в кеше: %s", target_dir)
+            return
+
+        logger.info("⬇️  Скачиваю модель %s в %s …", MODEL_ID, HF_CACHE_DIR)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            partial(
+                snapshot_download,
+                repo_id=MODEL_ID,
+                cache_dir=HF_CACHE_DIR,
+                allow_patterns=["*.bin", "*.json", "*.txt", "*.model"],
+            ),
+        )
+        logger.info("✅ Модель скачана")
+    except Exception as e:
+        logger.error("❌ Ошибка при скачивании модели %s: %s", MODEL_ID, e)
+        raise RuntimeError(f"Не удалось скачать модель {MODEL_ID}: {e}") from e
 
 
 async def wait_for_webhook_ready(url: str, timeout: int = 30):
@@ -32,6 +67,7 @@ async def wait_for_webhook_ready(url: str, timeout: int = 30):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await _ensure_model() 
     register_handlers()
 
     if USE_POLLING:
