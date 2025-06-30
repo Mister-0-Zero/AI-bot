@@ -80,13 +80,7 @@ async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     async with get_session() as session:
         try:
-            logger.info("📨 Получен telegram_id при /load_drive: %s", telegram_id)
             logger.info("📨 Проверка доступа к токену для telegram_id=%s", telegram_id)
-            logger.info("👤 Тип telegram_id: %s (%s)", telegram_id, type(telegram_id))
-            
-            users = await session.exec(select(User))
-            all_users = users.all()
-            logger.info("📋 Все пользователи: %s", [u.telegram_id for u in all_users])
             access_token = await get_valid_access_token(telegram_id, session)
         except Exception:
             await update.message.reply_text(
