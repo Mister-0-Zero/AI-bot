@@ -7,4 +7,6 @@ class User(SQLModel, table=True):
     email: Optional[str] = None
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
-    token_expiry: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    token_expiry: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )

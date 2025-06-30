@@ -16,9 +16,10 @@ async def get_valid_access_token(telegram_id: int, session: AsyncSession) -> str
     else:
         logger.info("Пользователь найден: %s", user.email)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if user.token_expiry and user.token_expiry > now + timedelta(minutes=1):
-        return user.access_token  # токен ещё жив
+        return user.access_token
+
 
     logger.info("🔄 Токен устарел. Обновляем по refresh_token...")
 
