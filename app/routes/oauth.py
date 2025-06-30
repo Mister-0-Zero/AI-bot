@@ -56,8 +56,9 @@ async def exchange_code(code: str) -> dict:
             "email": userinfo.get("email"),
         }
     
+
 @router.get("/oauth2callback")
-async def oauth2callback(request: Request, session: AsyncSession = Depends(get_session)):
+async def oauth2callback(request: Request):
     try:
         code = request.query_params.get("code")
         state = request.query_params.get("state")
@@ -79,35 +80,39 @@ async def oauth2callback(request: Request, session: AsyncSession = Depends(get_s
         email = tokens.get("email")
         expiry = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(tzinfo=None)
 
-        user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
-        if user is None:
-            user = User(
-                telegram_id=telegram_id,
-                access_token=access_token,
-                refresh_token=refresh_token,
-                token_expiry=expiry,
-                email=email,
-            )
-            session.add(user)
-            logger.info("Создан новый пользователь: %s", telegram_id)
-        else:
-            user.email = email or user.email
-            user.access_token = access_token
-            user.refresh_token = refresh_token or user.refresh_token
-            user.token_expiry = expiry
-            logger.info("Обновлён пользователь: %s", telegram_id)
+        # ← ВОТ ОН async with
+        async with get_session() as session:
+            user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
 
-        logger.info("Пользователь перед сохранением: %s", user.dict())
-        try:
-            await session.commit()
-        except Exception:
-            logger.exception("Ошибка при сохранении пользователя в БД")
-            raise HTTPException(status_code=500, detail="Ошибка при сохранении в БД")
+            if user is None:
+                user = User(
+                    telegram_id=telegram_id,
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    token_expiry=expiry,
+                    email=email,
+                )
+                session.add(user)
+                logger.info("Создан новый пользователь: %s", telegram_id)
+            else:
+                user.email = email or user.email
+                user.access_token = access_token
+                user.refresh_token = refresh_token or user.refresh_token
+                user.token_expiry = expiry
+                logger.info("Обновлён пользователь: %s", telegram_id)
+
+            logger.info("Пользователь перед сохранением: %s", user.dict())
+
+            try:
+                await session.commit()
+            except Exception:
+                logger.exception("Ошибка при сохранении пользователя в БД")
+                raise HTTPException(status_code=500, detail="Ошибка при сохранении в БД")
 
         await app_tg.bot.send_message(chat_id=telegram_id, text="✅ Google аккаунт успешно подключён!")
         logger.info("Уведомление отправлено пользователю: %s", telegram_id)
 
-        return RedirectResponse(url=f"https://t.me/AI_Google_Disk_helper_bot")
+        return RedirectResponse(url="https://t.me/AI_Google_Disk_helper_bot")
 
     except Exception:
         logger.exception("Ошибка в oauth2callback")
