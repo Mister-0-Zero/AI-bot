@@ -1,3 +1,3 @@
-from .txt_reader import TxtReader
-from .pdf_reader import PdfReader
-from .docxz_reader import DocxReader
+from .reader.txt_reader import TxtReader
+from .reader.pdf_reader import PdfReader
+from .reader.docxz_reader import DocxReader
