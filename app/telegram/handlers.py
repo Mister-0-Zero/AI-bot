@@ -26,7 +26,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 
-
 async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     await update.message.chat.send_action("typing")

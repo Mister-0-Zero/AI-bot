@@ -15,7 +15,7 @@ from huggingface_hub import snapshot_download
 logger = get_logger(__name__)
 WEBHOOK_PATH = "/telegram-webhook"
 WEBHOOK_URL = f"https://{RAILWAY_DOMAIN}{WEBHOOK_PATH}" if RAILWAY_DOMAIN else None
-MODEL_ID = "sberbank-ai/rugpt3small_based_on_gpt2"
+MODEL_ID = os.getenv("MODEL_ID")
 HF_CACHE_DIR = os.getenv("HF_HOME", "/mnt/models") 
 
 async def _ensure_model():
@@ -44,9 +44,9 @@ async def _ensure_model():
                 snapshot_download,
                 repo_id=MODEL_ID,
                 cache_dir=HF_CACHE_DIR,
-                allow_patterns=["*.bin", "*.json", "*.txt", "*.model", "*.pt"],
-                local_files_only=False,   # важно!
-                resume_download=True,     # продолжить если оборвалось
+                allow_patterns=["*.safetensors", "*.json", "*.txt", "*.model"],  # <- можно убрать *.bin
+                local_files_only=False,
+                resume_download=True,
             )
         )
 

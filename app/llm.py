@@ -2,29 +2,30 @@ from functools import lru_cache
 import os
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from app.core.logging_config import get_logger
 
-MODEL_ID = "sberbank-ai/rugpt3small_based_on_gpt2"
+logger = get_logger(__name__)
+
+MODEL_ID = "Unbabel/Tower-Plus-2B"
 HF_CACHE_DIR = os.getenv("HF_HOME", "/mnt/models")
 
 @lru_cache(maxsize=1)
 def get_model():
-    """
-    Загружает токенизатор и INT8-квантованную модель при первом вызове,
-    затем кэширует результат в памяти процесса.
-    """
-    tok = AutoTokenizer.from_pretrained(MODEL_ID, cache_dir=HF_CACHE_DIR)
+    logger.info("Начало загрузки модели %s", MODEL_ID)
 
-    base_model = AutoModelForCausalLM.from_pretrained(
+    tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_ID,
+        cache_dir=HF_CACHE_DIR
+    )
+
+    model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID,
         cache_dir=HF_CACHE_DIR,
-        low_cpu_mem_usage=True,         # экономия RAM
-        torch_dtype=torch.float32,      # безопасный CPU-режим
+        low_cpu_mem_usage=True,
+        torch_dtype=torch.float32  
     )
 
-    # 💡 динамическое квантование только Linear-слоёв (экономия памяти)
-    quant_model = torch.quantization.quantize_dynamic(
-        base_model, {torch.nn.Linear}, dtype=torch.qint8
-    )
-    quant_model.eval()
+    model.eval()
 
-    return tok, quant_model
+    logger.info("✅ Модель и токенизатор успешно загружены")
+    return tokenizer, model

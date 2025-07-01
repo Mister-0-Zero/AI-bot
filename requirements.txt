@@ -1,6 +1,6 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-numpy<2 
-torch==2.2.2+cpu
+numpy>=1.26
+torch>=2.6.0
 python-telegram-bot[asyncio]>=21,<23
 fastapi>=0.111
 uvicorn[standard]>=0.29
