@@ -21,18 +21,22 @@ HF_CACHE_DIR = os.getenv("HF_HOME", "/mnt/models")
 async def _ensure_model():
     """
     Скачивает веса модели в HF_CACHE_DIR, если их там ещё нет.
-    Запускается один раз при старте приложения.
+    Вызывается один раз при старте приложения.
     """
     try:
-        logger.info("Начало скачивание модели %s в %s", MODEL_ID, HF_CACHE_DIR)
+        logger.info("Начало скачивания модели %s в %s", MODEL_ID, HF_CACHE_DIR)
+
         target_dir = os.path.join(
-            HF_CACHE_DIR, f"models--{MODEL_ID.replace('/', '--')}"
+            HF_CACHE_DIR,
+            f"models--{MODEL_ID.replace('/', '--')}"
         )
+
         if os.path.isdir(target_dir):
             logger.info("✅ Модель уже в кеше: %s", target_dir)
             return
 
         logger.info("⬇️  Скачиваю модель %s в %s …", MODEL_ID, HF_CACHE_DIR)
+
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
@@ -40,10 +44,14 @@ async def _ensure_model():
                 snapshot_download,
                 repo_id=MODEL_ID,
                 cache_dir=HF_CACHE_DIR,
-                allow_patterns=["*.bin", "*.json", "*.txt", "*.model"],
-            ),
+                allow_patterns=["*.bin", "*.json", "*.txt", "*.model", "*.pt"],
+                local_files_only=False,   # важно!
+                resume_download=True,     # продолжить если оборвалось
+            )
         )
-        logger.info("✅ Модель скачана")
+
+        logger.info("✅ Модель успешно скачана")
+
     except Exception as e:
         logger.error("❌ Ошибка при скачивании модели %s: %s", MODEL_ID, e)
         raise RuntimeError(f"Не удалось скачать модель {MODEL_ID}: {e}") from e
