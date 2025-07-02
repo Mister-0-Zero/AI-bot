@@ -3,15 +3,18 @@ import os
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from app.core.logging_config import get_logger
+from huggingface_hub import login
+from app.core.config import MODEL_ID, MODEL_TOKEN
+
+login(token=MODEL_TOKEN)
 
 logger = get_logger(__name__)
 
-MODEL_ID = "Unbabel/Tower-Plus-2B"
 HF_CACHE_DIR = os.getenv("HF_HOME", "/mnt/models")
 
 @lru_cache(maxsize=1)
 def get_model():
-    logger.info("Начало загрузки модели %s", MODEL_ID)
+    logger.info("🔄 Начало загрузки модели %s", MODEL_ID)
 
     tokenizer = AutoTokenizer.from_pretrained(
         MODEL_ID,
@@ -21,11 +24,12 @@ def get_model():
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID,
         cache_dir=HF_CACHE_DIR,
-        low_cpu_mem_usage=True,
-        torch_dtype=torch.float32  
+        torch_dtype=torch.float16,
+        device_map="auto"
     )
 
     model.eval()
 
-    logger.info("✅ Модель и токенизатор успешно загружены")
+    device = next(model.parameters()).device
+    logger.info("✅ Модель и токенизатор успешно загружены на %s", device)
     return tokenizer, model

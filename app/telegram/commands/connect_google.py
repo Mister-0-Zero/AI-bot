@@ -1,7 +1,7 @@
 from urllib.parse import urlencode
 from telegram import Update
 from telegram.ext import ContextTypes
-from app.core.config import CLIENT_ID, CLIENT_SECRET, RAILWAY_DOMAIN, GOOGLE_OAUTH_SCOPES as SCOPES
+from app.core.config import CLIENT_ID, CLIENT_SECRET, GOOGLE_OAUTH_SCOPES as SCOPES, REDIRECT_DOMAIN 
 from app.core.state import put_state
 from app.telegram.bot import app_tg
 from app.core.logging_config import get_logger
@@ -21,7 +21,7 @@ async def cmd_connect_google(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "https://accounts.google.com/o/oauth2/v2/auth?" +
         urlencode({
             "client_id": CLIENT_ID,
-            "redirect_uri": f"https://{RAILWAY_DOMAIN}/oauth2callback",
+            "redirect_uri": f"http://{REDIRECT_DOMAIN}/oauth2callback",
             "response_type": "code",
             "scope": " ".join(SCOPES),
             "state": state,

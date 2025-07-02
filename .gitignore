@@ -1,14 +1,6 @@
 /venv/
 /.env
-/__pycache__/
-/app/core/__pycache__
-/app/models/__pycache__
-/app/services/__pycache__
-/app/routes/__pycache__
-/app/telegram/__pycache__
-/app/__pycache__
-/app/telegram/__pycache__
-/app/core/__pycache__
-/app/services/reader/__pycache__
-/app/telegram/commands/__pycache__
+**/__pycache__/
+*.pyc
 /.models
+/fine-tuning_model/

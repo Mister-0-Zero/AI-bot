@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import Request, Depends, APIRouter, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-from app.core.config import CLIENT_ID, CLIENT_SECRET, RAILWAY_DOMAIN
+from app.core.config import CLIENT_ID, CLIENT_SECRET, REDIRECT_DOMAIN
 from app.core.db import get_session
 from app.core.state import pop_state
 from app.models.user import User
@@ -17,6 +17,7 @@ logger = get_logger(__name__)
 router = APIRouter()
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 
+
 async def exchange_code(code: str) -> dict:
     logger.info("Обмен authorization code на токены")
     async with httpx.AsyncClient(http2=True, timeout=10) as client:
@@ -27,7 +28,7 @@ async def exchange_code(code: str) -> dict:
                 "code": code,
                 "client_id": CLIENT_ID,
                 "client_secret": CLIENT_SECRET,
-                "redirect_uri": f"https://{RAILWAY_DOMAIN}/oauth2callback",
+                "redirect_uri": f"http://{REDIRECT_DOMAIN}/oauth2callback",
                 "grant_type": "authorization_code",
             },
         )

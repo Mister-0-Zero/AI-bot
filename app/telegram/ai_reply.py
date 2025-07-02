@@ -1,16 +1,34 @@
 from app.llm import get_model
 import torch
 from app.core.logging_config import get_logger
+from app.core.vector_store import load_vector_db
 
 logger = get_logger(__name__)
 MAX_NEW_TOKENS = 120
 
+
+def search_knowledge(query: str, k: int = 5) -> list[str]:
+    db = load_vector_db()
+    results = db.similarity_search(query, k=k)
+    return [r.page_content for r in results]
+
 def generate_reply(user_text: str) -> str:
     logger.info("Получен запрос от пользователя: %s", user_text)
 
-    tokenizer, model = get_model()
+    prompt = "Ты AI-ассистент, который дает ответы пользователям \
+              на основе файлов, загруженных с google disk пользователей. \
+              Твои ответы должны быть краткими и четкими.\n\n"
+    # 🔍 Поиск знаний в векторной БД
+    context_chunks = search_knowledge(user_text)
+    if context_chunks:
+        context = "\n\n".join(context_chunks)
+        prompt += f"Контекст:\n{context}\n\nПользователь: {user_text}\nАссистент:"
+        logger.info("Добавлен контекст из БД (%d чанков)", len(context_chunks))
+    else:
+        prompt += f"Пользователь: {user_text}\nАссистент:"
+        logger.info("Контекст не найден, используется только вопрос")
 
-    prompt = f"Пользователь: {user_text}\nАссистент:"
+    tokenizer, model = get_model()
     inputs = tokenizer(prompt, return_tensors="pt")
 
     with torch.no_grad():
@@ -26,7 +44,6 @@ def generate_reply(user_text: str) -> str:
 
     decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-    # Корректно вырезаем только ответ ассистента
     if "Ассистент:" in decoded:
         answer = decoded.split("Ассистент:")[-1].strip()
     else:

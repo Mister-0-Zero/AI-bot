@@ -15,3 +15,10 @@ PyMuPDF>=1.22.0
 filetype>=1.2.0
 huggingface_hub>=0.23
 transformers>=4.41
+chromadb
+langchain 
+sentence-transformers
+accelerate
+huggingface_hub[hf_xet]
+langchain-community
+langchain-huggingface

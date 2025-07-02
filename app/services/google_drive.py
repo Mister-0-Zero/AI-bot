@@ -41,7 +41,7 @@ async def read_files_from_drive(access_token: str, on_progress: callable) -> lis
         if text:
             logger.info("✅ Прочитал %s", file_name)
             await on_progress(f"✅ Считан файл: {file_name}")
-            result.append(f"📄 {file_name}:\n{text}...")
+            result.append((file_name, text))
         else:
             logger.warning("⚠️ Не удалось прочитать %s", file_name)
             await on_progress(f"⚠️ Ошибка чтения файла: {file_name}\
