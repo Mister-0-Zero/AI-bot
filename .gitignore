@@ -4,3 +4,4 @@
 *.pyc
 /.models
 /fine-tuning_model/
+/.vscode/

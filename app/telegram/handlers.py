@@ -5,7 +5,7 @@ from app.telegram.commands import (
     cmd_help,
     cmd_connect_google,
     cmd_load_drive,
-    cmd_list_files
+    cmd_list_files,
 )
 from app.core.logging_config import get_logger
 import traceback

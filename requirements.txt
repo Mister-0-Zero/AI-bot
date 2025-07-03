@@ -1,24 +1,37 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Базовые зависимости
 numpy>=1.26
 torch>=2.6.0
+accelerate
+
+# Telegram бот
 python-telegram-bot[asyncio]>=21,<23
+
+# Web сервер
 fastapi>=0.111
 uvicorn[standard]>=0.29
+
+# Работа с БД
 sqlmodel>=0.0.14
 asyncpg>=0.29
+
+# Работа с сетью и файлами
 httpx[http2]>=0.26
 python-dotenv>=1.0
 python-multipart>=0.0.9
-redis>=4.0
+filetype>=1.2.0
 python-docx>=1.1.0
 PyMuPDF>=1.22.0
-filetype>=1.2.0
-huggingface_hub>=0.23
+redis>=4.0
+
+# HuggingFace и трансформеры
+huggingface_hub[hf_xet]>=0.23
 transformers>=4.41
-chromadb
-langchain 
 sentence-transformers
-accelerate
-huggingface_hub[hf_xet]
+
+# LangChain + Chroma
+chromadb
+langchain
 langchain-community
 langchain-huggingface
