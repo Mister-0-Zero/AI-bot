@@ -14,10 +14,7 @@ WELCOME_TEXT = (
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Путь к изображению
-    image_path = Path("../../assets/welcome.png")
-
-    # Отправка текста
-    await update.message.reply_text(WELCOME_TEXT, parse_mode="HTML")
+    image_path = Path("app/assets/welcome.png")
 
     # Отправка изображения
     logger.info(f"Отправка изображения приветствия: {image_path}")
@@ -27,3 +24,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_photo(photo=image)
     else:
         logger.error(f"Изображение не найдено: {image_path}")
+
+    # Отправка текста
+    await update.message.reply_text(WELCOME_TEXT, parse_mode="HTML")

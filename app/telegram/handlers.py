@@ -6,6 +6,7 @@ from app.telegram.commands import (
     cmd_connect_google,
     cmd_load_drive,
     cmd_list_files,
+    cmd_show_email,
 )
 from app.core.logging_config import get_logger
 import traceback
@@ -18,7 +19,7 @@ logger = get_logger(__name__)
 
 # Универсальный лог ошибок
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    error_text = f"❌ Произошла ошибка: {context.error}"
+    error_text = f"❌ Произошла ошибка"
     if isinstance(update, Update) and update.message:
         await update.message.reply_text(error_text)
 
@@ -43,6 +44,7 @@ def register_handlers():
     app_tg.add_handler(CommandHandler("connect_google", cmd_connect_google))
     app_tg.add_handler(CommandHandler("load_drive", cmd_load_drive))
     app_tg.add_handler(CommandHandler("list_files", cmd_list_files))
+    app_tg.add_handler(CommandHandler("my_email", cmd_show_email))
 
     app_tg.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_ai))
 
