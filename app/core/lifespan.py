@@ -14,7 +14,7 @@ from huggingface_hub import snapshot_download, login
 
 logger = get_logger(__name__)
 WEBHOOK_PATH = "/telegram-webhook"
-#WEBHOOK_URL = f"https://{RAILWAY_DOMAIN}{WEBHOOK_PATH}" if RAILWAY_DOMAIN else None
+WEBHOOK_URL = "" #f"https://{RAILWAY_DOMAIN}{WEBHOOK_PATH}" if RAILWAY_DOMAIN else None
 HF_CACHE_DIR = os.getenv("HF_HOME", "/mnt/models") 
 
 # Авторизация Hugging Face (на случай запуска отдельно)

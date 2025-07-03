@@ -48,7 +48,7 @@ async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     logger.info("📁 Чтение файлов с Google Диска для telegram_id=%s", telegram_id)
 
     try:
-        files = await read_files_from_drive(access_token, progress_callback)
+        files = await read_files_from_drive(access_token, telegram_id, progress_callback)
         logger.info("📚 Успешно считано файлов: %d для telegram_id=%s", len(files), telegram_id)
     except Exception as e:
         logger.error("❌ Ошибка при чтении файлов: %s", str(e))

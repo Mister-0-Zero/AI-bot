@@ -15,7 +15,7 @@ TEXT_MIME_TYPES = {
 
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
-async def read_files_from_drive(access_token: str, on_progress: callable) -> list[str]:
+async def read_files_from_drive(access_token: str, user_id: int, on_progress: callable) -> list[str]:
     logger.info("🚀 Старт read_files_from_drive, access_token=%s...", access_token[:10])
     headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -41,7 +41,7 @@ async def read_files_from_drive(access_token: str, on_progress: callable) -> lis
         if text:
             logger.info("✅ Прочитал %s", file_name)
             await on_progress(f"✅ Считан файл: {file_name}")
-            result.append((file_name, text))
+            result.append((file_name, text, user_id))
         else:
             logger.warning("⚠️ Не удалось прочитать %s", file_name)
             await on_progress(f"⚠️ Ошибка чтения файла: {file_name}\

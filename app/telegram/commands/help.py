@@ -7,6 +7,7 @@ HELP_TEXT = (
     "🛟 <b>/help</b> — Справка по командам\n"
     "🔗 <b>/connect_google</b> — Подключить аккаунт Google Диска\n"
     "📂 <b>/load_drive</b> — Загрузить и прочитать файлы с Google Диска\n"
+    "🗂 <b>/list_files</b> — Посмотреть список загруженных файлов\n"
 )
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):

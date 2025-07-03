@@ -5,6 +5,7 @@ from app.telegram.commands import (
     cmd_help,
     cmd_connect_google,
     cmd_load_drive,
+    cmd_list_files
 )
 from app.core.logging_config import get_logger
 import traceback
@@ -41,6 +42,7 @@ def register_handlers():
     app_tg.add_handler(CommandHandler("help", cmd_help))
     app_tg.add_handler(CommandHandler("connect_google", cmd_connect_google))
     app_tg.add_handler(CommandHandler("load_drive", cmd_load_drive))
+    app_tg.add_handler(CommandHandler("list_files", cmd_list_files))
 
     app_tg.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_ai))
 
