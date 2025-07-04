@@ -1,6 +1,9 @@
-from .base_reader import BaseReader
-from docx import Document
 import io
+
+from docx import Document
+
+from .base_reader import BaseReader
+
 
 class DocxReader(BaseReader):
     async def read(self, file_bytes: bytes) -> str:

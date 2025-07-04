@@ -1,6 +1,8 @@
+from pathlib import Path
+
 from telegram import Update
 from telegram.ext import ContextTypes
-from pathlib import Path
+
 from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -11,6 +13,7 @@ WELCOME_TEXT = (
     "отвечать на вопросы и давать рекомендации на основе загруженных материалов.\n\n"
     "🟢 Используйте команду /help для просмотра доступных команд."
 )
+
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Путь к изображению

@@ -1,7 +1,8 @@
 from fastapi import FastAPI
+
 from app.core.lifespan import lifespan
-from app.routes import setup_routes
 from app.core.logging_config import setup_logging
+from app.routes import setup_routes
 
 # Настройка логирования (до всех импортов, где используется logger)
 setup_logging()

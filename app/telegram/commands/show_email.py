@@ -1,11 +1,13 @@
+from sqlalchemy import select
 from telegram import Update
 from telegram.ext import ContextTypes
+
 from app.core.db import get_session
-from app.models.user import User
-from sqlalchemy import select
 from app.core.logging_config import get_logger
+from app.models.user import User
 
 logger = get_logger(__name__)
+
 
 async def cmd_show_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id

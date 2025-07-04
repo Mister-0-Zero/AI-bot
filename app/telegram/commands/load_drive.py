@@ -1,15 +1,18 @@
+import multiprocessing
+
 from telegram import Update
 from telegram.ext import ContextTypes
-from app.services.google_drive import read_files_from_drive
-from app.core.vector_store import store_documents_async
+
 from app.core.logging_config import get_logger
-import multiprocessing
+from app.core.vector_store import store_documents_async
+from app.services.google_drive import read_files_from_drive
 
 logger = get_logger(__name__)
 
 
 def _fetch_token_process(telegram_id: int, conn):
     from app.services.token_refresh_sync import get_valid_access_token_sync
+
     try:
         token = get_valid_access_token_sync(telegram_id)
         conn.send(token)
@@ -21,11 +24,15 @@ def _fetch_token_process(telegram_id: int, conn):
 
 async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
-    logger.info("🚀 Запуск команды /load_drive от пользователя telegram_id=%s", telegram_id)
+    logger.info(
+        "🚀 Запуск команды /load_drive от пользователя telegram_id=%s", telegram_id
+    )
 
     # Получение access_token в изолированном процессе
     parent_conn, child_conn = multiprocessing.Pipe()
-    proc = multiprocessing.Process(target=_fetch_token_process, args=(telegram_id, child_conn))
+    proc = multiprocessing.Process(
+        target=_fetch_token_process, args=(telegram_id, child_conn)
+    )
     proc.start()
     result = parent_conn.recv()
     proc.join()
@@ -48,8 +55,12 @@ async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     logger.info("📁 Чтение файлов с Google Диска для telegram_id=%s", telegram_id)
 
     try:
-        files = await read_files_from_drive(access_token, telegram_id, progress_callback)
-        logger.info("📚 Успешно считано файлов: %d для telegram_id=%s", len(files), telegram_id)
+        files = await read_files_from_drive(
+            access_token, telegram_id, progress_callback
+        )
+        logger.info(
+            "📚 Успешно считано файлов: %d для telegram_id=%s", len(files), telegram_id
+        )
     except Exception as e:
         logger.error("❌ Ошибка при чтении файлов: %s", str(e))
         await update.message.reply_text("❌ Произошла ошибка при чтении файлов.")
@@ -58,12 +69,18 @@ async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"📚 Всего считано файлов: {len(files)}")
 
     try:
-        await update.message.reply_text("💾 Сохраняю данные в базу данных, налейте кофейку, это может занять время")
-        logger.info("💾 Сохранение в векторную БД начато для telegram_id=%s", telegram_id)
+        await update.message.reply_text(
+            "💾 Сохраняю данные в базу данных, налейте кофейку, это может занять время"
+        )
+        logger.info(
+            "💾 Сохранение в векторную БД начато для telegram_id=%s", telegram_id
+        )
 
         await store_documents_async(files)
 
-        logger.info("✅ Сохранение в векторную БД завершено для telegram_id=%s", telegram_id)
+        logger.info(
+            "✅ Сохранение в векторную БД завершено для telegram_id=%s", telegram_id
+        )
         await update.message.reply_text("✅ Файлы успешно сохранены в базу знаний!")
 
     except Exception as e:

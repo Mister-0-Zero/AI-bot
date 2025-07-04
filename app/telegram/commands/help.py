@@ -12,5 +12,6 @@ HELP_TEXT = (
     "🧹 <b>/clear_knowledge</b> — Удалить свои данные из базы знаний\n"
 )
 
+
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(HELP_TEXT, parse_mode="HTML")

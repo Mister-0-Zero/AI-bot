@@ -1,14 +1,16 @@
-import os, secrets, logging
-from datetime import datetime, timezone, timedelta
+import logging
+import os
+import secrets
+from datetime import datetime, timedelta, timezone
 
-TTL_SEC = 600                       
-logger  = logging.getLogger(__name__)
+TTL_SEC = 600
+logger = logging.getLogger(__name__)
 
 REDIS_URL = os.getenv("REDIS_URL")  #
 
 
 if REDIS_URL:
-    import redis.asyncio as redis   
+    import redis.asyncio as redis  # type: ignore
 
     _r = redis.from_url(REDIS_URL, decode_responses=True)
 
@@ -19,8 +21,9 @@ if REDIS_URL:
         return state
 
     async def pop_state(state: str) -> int | None:
-        tid = await _r.getdel(f"oauth_state:{state}")     # атомарно получить и удалить
+        tid = await _r.getdel(f"oauth_state:{state}")  # атомарно получить и удалить
         return int(tid) if tid else None
+
 
 # 2. Fallback — обычный словарь (локальный однопроцессный запуск)
 else:

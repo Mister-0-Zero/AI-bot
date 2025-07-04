@@ -1,7 +1,8 @@
-from app.llm import get_model
 import torch
+
 from app.core.logging_config import get_logger
 from app.core.vector_store import load_vector_db
+from app.llm import get_model
 
 logger = get_logger(__name__)
 MAX_NEW_TOKENS = 120
@@ -11,6 +12,7 @@ def search_knowledge(query: str, k: int = 5) -> list[str]:
     db = load_vector_db()
     results = db.similarity_search(query, k=k)
     return [r.page_content for r in results]
+
 
 def generate_reply(user_text: str) -> str:
     logger.info("Получен запрос от пользователя: %s", user_text)
@@ -49,5 +51,5 @@ def generate_reply(user_text: str) -> str:
     else:
         answer = decoded.strip()
 
-    logger.info("Ответ сгенерирован: %s", answer or '[пусто]')
+    logger.info("Ответ сгенерирован: %s", answer or "[пусто]")
     return answer or "🤖 Пока не знаю, как ответить."

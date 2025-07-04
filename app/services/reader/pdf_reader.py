@@ -1,5 +1,7 @@
-from .base_reader import BaseReader
 import fitz  # PyMuPDF
+
+from .base_reader import BaseReader
+
 
 class PdfReader(BaseReader):
     async def read(self, file_bytes: bytes) -> str:

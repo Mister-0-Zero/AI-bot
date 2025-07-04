@@ -1,12 +1,17 @@
 from urllib.parse import urlencode
+
 from telegram import Update
 from telegram.ext import ContextTypes
-from app.core.config import CLIENT_ID, CLIENT_SECRET, GOOGLE_OAUTH_SCOPES as SCOPES, REDIRECT_DOMAIN 
+
+from app.core.config import CLIENT_ID, CLIENT_SECRET
+from app.core.config import GOOGLE_OAUTH_SCOPES as SCOPES
+from app.core.config import REDIRECT_DOMAIN
+from app.core.logging_config import get_logger
 from app.core.state import put_state
 from app.telegram.bot import app_tg
-from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
+
 
 async def cmd_connect_google(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not (CLIENT_ID and CLIENT_SECRET):
@@ -17,9 +22,8 @@ async def cmd_connect_google(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     logger.info("🔗 Авторизация запрошена пользователем %s", telegram_id)
 
     state = await put_state(telegram_id)
-    auth_url = (
-        "https://accounts.google.com/o/oauth2/v2/auth?" +
-        urlencode({
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(
+        {
             "client_id": CLIENT_ID,
             "redirect_uri": f"http://{REDIRECT_DOMAIN}/oauth2callback",
             "response_type": "code",
@@ -28,10 +32,10 @@ async def cmd_connect_google(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             "access_type": "offline",
             "prompt": "consent",
             "include_granted_scopes": "false",
-        })
+        }
     )
 
     await app_tg.bot.send_message(
         chat_id=telegram_id,
-        text=f"Перейди по ссылке для подключения Google:\n{auth_url}"
+        text=f"Перейди по ссылке для подключения Google:\n{auth_url}",
     )

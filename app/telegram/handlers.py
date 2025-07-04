@@ -1,32 +1,35 @@
-from telegram.ext import CommandHandler, MessageHandler, filters
+import asyncio
+import traceback
+
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
+
+from app.core.logging_config import get_logger
+from app.telegram.ai_reply import generate_reply
 from app.telegram.bot import app_tg
 from app.telegram.commands import (
-    cmd_start,
-    cmd_help,
-    cmd_connect_google,
-    cmd_load_drive,
-    cmd_list_files,
-    cmd_show_email,
     cmd_clear_knowledge,
+    cmd_connect_google,
+    cmd_help,
+    cmd_list_files,
+    cmd_load_drive,
+    cmd_show_email,
+    cmd_start,
 )
-from app.core.logging_config import get_logger
-import traceback
-from telegram import Update
-from telegram.ext import ContextTypes
-from app.telegram.ai_reply import generate_reply
-import asyncio
 
 logger = get_logger(__name__)
 
+
 # Универсальный лог ошибок
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    error_text = f"❌ Произошла ошибка"
+    error_text = "❌ Произошла ошибка"
     if isinstance(update, Update) and update.message:
         await update.message.reply_text(error_text)
 
     logger.warning("Ошибка: %s", error_text)
-    traceback.print_exception(type(context.error), context.error, context.error.__traceback__)
-
+    traceback.print_exception(
+        type(context.error), context.error, context.error.__traceback__
+    )
 
 
 async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):

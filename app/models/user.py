@@ -1,6 +1,8 @@
-from typing import Optional
-from sqlmodel import SQLModel, Field
 from datetime import datetime, timezone
+from typing import Optional
+
+from sqlmodel import Field, SQLModel
+
 
 class User(SQLModel, table=True):
     telegram_id: int = Field(primary_key=True)

@@ -1,15 +1,20 @@
-from datetime import datetime, timedelta, timezone
-import httpx
 import logging
+from datetime import datetime, timedelta, timezone
+
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-from app.models.user import User
+
 from app.core.config import CLIENT_ID, CLIENT_SECRET
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
+
 async def get_valid_access_token(telegram_id: int, session: AsyncSession) -> str:
-    logger.info("🔍 get_valid_access_token: старт проверки для telegram_id=%s", telegram_id)
+    logger.info(
+        "🔍 get_valid_access_token: старт проверки для telegram_id=%s", telegram_id
+    )
 
     # 1. Достаем пользователя
     user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
@@ -21,13 +26,16 @@ async def get_valid_access_token(telegram_id: int, session: AsyncSession) -> str
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     if user.token_expiry and user.token_expiry > now + timedelta(minutes=1):
         logger.info(
-            "🔒 Токен действителен, expires at %s (now %s)",
-            user.token_expiry, now
+            "🔒 Токен действителен, expires at %s (now %s)", user.token_expiry, now
         )
         return user.access_token
 
     # 3. Токен истек — обновляем
-    logger.info("🔄 Токен устарел (expiry=%s, now=%s). Обновление по refresh_token...", user.token_expiry, now)
+    logger.info(
+        "🔄 Токен устарел (expiry=%s, now=%s). Обновление по refresh_token...",
+        user.token_expiry,
+        now,
+    )
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(

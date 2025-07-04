@@ -1,16 +1,16 @@
+from datetime import datetime, timedelta, timezone
+
 import httpx
-from datetime import datetime, timezone, timedelta
-from fastapi import Request, Depends, APIRouter, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlmodel import select
+
 from app.core.config import CLIENT_ID, CLIENT_SECRET, REDIRECT_DOMAIN
 from app.core.db import get_session
+from app.core.logging_config import get_logger
 from app.core.state import pop_state
 from app.models.user import User
 from app.telegram.bot import app_tg
-from app.core.logging_config import get_logger
-from app.core.state import pop_state 
-from fastapi.responses import RedirectResponse
 
 logger = get_logger(__name__)
 
@@ -42,13 +42,18 @@ async def exchange_code(code: str) -> dict:
         # 2. Получаем информацию о пользователе
         userinfo_resp = await client.get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         userinfo_resp.raise_for_status()
         userinfo = userinfo_resp.json()
         logger.info("Информация о пользователе получена: %s", userinfo.get("email"))
         logger.info("Tokens: %s", tokens)
-        logger.info("Сохраняем пользователя: access_token=%s, refresh_token=%s, email=%s", access_token, refresh_token, userinfo.get("email"))
+        logger.info(
+            "Сохраняем пользователя: access_token=%s, refresh_token=%s, email=%s",
+            access_token,
+            refresh_token,
+            userinfo.get("email"),
+        )
 
         return {
             "access_token": access_token,
@@ -56,7 +61,7 @@ async def exchange_code(code: str) -> dict:
             "expires_in": tokens.get("expires_in"),
             "email": userinfo.get("email"),
         }
-    
+
 
 @router.get("/oauth2callback")
 async def oauth2callback(request: Request):
@@ -79,10 +84,14 @@ async def oauth2callback(request: Request):
         refresh_token = tokens.get("refresh_token")
         expires_in = tokens.get("expires_in", 0)
         email = tokens.get("email")
-        expiry = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(tzinfo=None)
+        expiry = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(
+            tzinfo=None
+        )
 
         async with get_session() as session:
-            user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
+            user = await session.scalar(
+                select(User).where(User.telegram_id == telegram_id)
+            )
 
             if user is None:
                 user = User(
@@ -108,9 +117,13 @@ async def oauth2callback(request: Request):
                 logger.info("Изменения сохранены в БД")
             except Exception:
                 logger.exception("Ошибка при сохранении пользователя в БД")
-                raise HTTPException(status_code=500, detail="Ошибка при сохранении в БД")
+                raise HTTPException(
+                    status_code=500, detail="Ошибка при сохранении в БД"
+                )
 
-        await app_tg.bot.send_message(chat_id=telegram_id, text="✅ Google аккаунт успешно подключён!")
+        await app_tg.bot.send_message(
+            chat_id=telegram_id, text="✅ Google аккаунт успешно подключён!"
+        )
         logger.info("Уведомление отправлено пользователю: %s", telegram_id)
 
         return RedirectResponse(url="https://t.me/AI_Google_Disk_helper_bot")
