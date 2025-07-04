@@ -11,6 +11,7 @@ from app.telegram.commands import (
     cmd_clear_knowledge,
     cmd_connect_google,
     cmd_help,
+    cmd_instruction,
     cmd_list_files,
     cmd_load_drive,
     cmd_show_email,
@@ -50,6 +51,7 @@ def register_handlers():
     app_tg.add_handler(CommandHandler("list_files", cmd_list_files))
     app_tg.add_handler(CommandHandler("my_email", cmd_show_email))
     app_tg.add_handler(CommandHandler("clear_knowledge", cmd_clear_knowledge))
+    app_tg.add_handler(CommandHandler("instruction", cmd_instruction))
 
     app_tg.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_ai))
 

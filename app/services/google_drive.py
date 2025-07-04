@@ -16,7 +16,7 @@ TEXT_MIME_TYPES = {
     "application/pdf": "pdf",
 }
 
-MAX_FILE_SIZE = 10 * 1024 * 1024
+MAX_FILE_SIZE = 10 * 1024
 
 
 async def read_files_from_drive(
@@ -30,7 +30,7 @@ async def read_files_from_drive(
             "https://www.googleapis.com/drive/v3/files",
             headers=headers,
             params={
-                "pageSize": 10,
+                "pageSize": 5,
                 "fields": "files(id, name, mimeType)",
                 "q": "trashed = false",
             },
@@ -70,7 +70,7 @@ async def download_and_extract_text(
     file_id: str, mime_type: str, headers: dict, file_name: str
 ) -> str | None:
     """
-    Скачивает файл (≤10 МБ), безопасно извлекает текст.
+    Скачивает файл (≤10 КБ), безопасно извлекает текст.
     При неизвестном mime_type пытается определить его по содержимому (через filetype).
     """
     export_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
@@ -82,7 +82,7 @@ async def download_and_extract_text(
             head_resp.raise_for_status()
             size_str = head_resp.headers.get("Content-Length")
             if size_str and int(size_str) > MAX_FILE_SIZE:
-                logger.warning("Файл %s превышает 10 МБ (%s байт)", file_id, size_str)
+                logger.warning("Файл %s превышает 10 КБ (%s байт)", file_id, size_str)
                 return None
 
             # Скачивание файла

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from telegram import Update
+from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from app.core.logging_config import get_logger
@@ -28,5 +28,16 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         logger.error(f"Изображение не найдено: {image_path}")
 
-    # Отправка текста
-    await update.message.reply_text(WELCOME_TEXT, parse_mode="HTML")
+    # Клавиатура с кнопками
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            ["/instruction"],
+            ["/help"],
+        ],
+        resize_keyboard=True,
+    )
+
+    # Отправка текста с клавиатурой
+    await update.message.reply_text(
+        WELCOME_TEXT, parse_mode="HTML", reply_markup=keyboard
+    )
