@@ -22,6 +22,8 @@ MODEL_TOKEN = os.getenv("MODEL_TOKEN", "")
 
 MODEL_ID = os.getenv("MODEL_ID", "google/gemma-2b-it")
 
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
 # Проверка обязательных переменных
 if not BOT_TOKEN:
     raise RuntimeError("❌ BOT_TOKEN is required")

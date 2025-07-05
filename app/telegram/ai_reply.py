@@ -14,21 +14,30 @@ def search_knowledge(query: str, k: int = 5) -> list[str]:
     return [r.page_content for r in results]
 
 
-def generate_reply(user_text: str) -> str:
-    logger.info("Получен запрос от пользователя: %s", user_text)
+def generate_reply(history: list[str]) -> str:
+    latest_user_input = history[-1] if history else "..."
 
-    prompt = "Ты AI-ассистент, который дает ответы пользователям \
-              на основе файлов, загруженных с google disk пользователей. \
-              Твои ответы должны быть краткими и четкими.\n\n"
-    # 🔍 Поиск знаний в векторной БД
-    context_chunks = search_knowledge(user_text)
+    logger.info(
+        "Генерация ответа по истории, последнее сообщение: %s", latest_user_input
+    )
+
+    prompt = (
+        "Ты AI-ассистент, который дает ответы пользователям "
+        "на основе файлов, загруженных с Google Диска. "
+        "Твои ответы должны быть краткими и четкими.\n\n"
+    )
+
+    dialog = "\n".join(history)
+    prompt += f"{dialog}\nАссистент:"
+
+    # 🔍 Поиск знаний в векторной БД по последнему вопросу
+    context_chunks = search_knowledge(latest_user_input)
     if context_chunks:
         context = "\n\n".join(context_chunks)
-        prompt += f"Контекст:\n{context}\n\nПользователь: {user_text}\nАссистент:"
+        prompt = f"Контекст:\n{context}\n\n" + prompt
         logger.info("Добавлен контекст из БД (%d чанков)", len(context_chunks))
     else:
-        prompt += f"Пользователь: {user_text}\nАссистент:"
-        logger.info("Контекст не найден, используется только вопрос")
+        logger.info("Контекст не найден, используется только история")
 
     tokenizer, model = get_model()
     inputs = tokenizer(prompt, return_tensors="pt")
@@ -51,5 +60,6 @@ def generate_reply(user_text: str) -> str:
     else:
         answer = decoded.strip()
 
+    logger.info(f"prompt: {prompt}")
     logger.info("Ответ сгенерирован: %s", answer or "[пусто]")
     return answer or "🤖 Пока не знаю, как ответить."

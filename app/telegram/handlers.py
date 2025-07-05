@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
 from app.core.logging_config import get_logger
+from app.core.state import get_history, push_history
 from app.telegram.ai_reply import generate_reply
 from app.telegram.bot import app_tg
 from app.telegram.commands import (
@@ -35,10 +36,22 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
+    user_id = update.effective_user.id
+
     await update.message.chat.send_action("typing")
 
+    # Сохраняем реплику пользователя
+    await push_history(user_id, f"Пользователь: {user_text}")
+
+    # Получаем обновлённую историю
+    history = await get_history(user_id)
+
+    # Вызываем генерацию с историей
     loop = asyncio.get_running_loop()
-    answer = await loop.run_in_executor(None, generate_reply, user_text)
+    answer = await loop.run_in_executor(None, generate_reply, history)
+
+    # Сохраняем ответ бота
+    await push_history(user_id, f"Ассистент: {answer}")
 
     await update.message.reply_text(answer)
 
