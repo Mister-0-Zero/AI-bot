@@ -17,37 +17,43 @@ def search_knowledge(query: str, k: int = 5) -> list[str]:
 def generate_reply(history: list[str]) -> str:
     latest_user_input = history[-1] if history else "..."
 
-    logger.info(
-        "Генерация ответа по истории, последнее сообщение: %s", latest_user_input
-    )
+    logger.info("Генерация ответа, последнее сообщение: %s", latest_user_input)
 
-    prompt = (
-        "Ты AI-ассистент, который дает ответы пользователям "
-        "на основе файлов, загруженных с Google Диска. "
-        "Твои ответы должны быть краткими и четкими.\n\n"
-    )
-
-    dialog = "\n".join(history)
-    prompt += f"{dialog}\nАссистент:"
-
-    # 🔍 Поиск знаний в векторной БД по последнему вопросу
+    # 🔍 Поиск знаний
     context_chunks = search_knowledge(latest_user_input)
     if context_chunks:
         context = "\n\n".join(context_chunks)
-        prompt = f"Контекст:\n{context}\n\n" + prompt
-        logger.info("Добавлен контекст из БД (%d чанков)", len(context_chunks))
+        system_prompt = (
+            "Ты полезный AI-ассистент. "
+            "Используй контекст из файлов Google Диска для точных, кратких и понятных ответов.\n\n"
+            f"Контекст:\n{context}"
+        )
+        logger.info("Добавлен контекст (%d чанков)", len(context_chunks))
     else:
-        logger.info("Контекст не найден, используется только история")
+        system_prompt = (
+            "Ты полезный AI-ассистент. "
+            "Отвечай кратко и понятно на основе истории диалога."
+        )
+        logger.info("Контекст не найден")
 
+    # 💬 Формирование промпта в формате TinyLlama
+    prompt = f"<|system|>\n{system_prompt}\n"
+    for i, message in enumerate(history):
+        role = "user" if i % 2 == 0 else "assistant"
+        prompt += f"<|{role}|>\n{message}\n"
+    prompt += "<|assistant|>\n"
+
+    logger.info("Промпт сформирован: %s", prompt + "...")
+    # 🔄 Генерация ответа
     tokenizer, model = get_model()
-    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
 
     with torch.no_grad():
         outputs = model.generate(
             input_ids=inputs["input_ids"],
             attention_mask=inputs["attention_mask"],
             max_new_tokens=MAX_NEW_TOKENS,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
             do_sample=True,
             top_p=0.9,
             temperature=0.7,
@@ -55,10 +61,8 @@ def generate_reply(history: list[str]) -> str:
 
     decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-    if "Ассистент:" in decoded:
-        answer = decoded.split("Ассистент:")[-1].strip()
-    else:
-        answer = decoded.strip()
+    # 💡 Извлекаем ответ после последнего <|assistant|>
+    answer = decoded.split("<|assistant|>")[-1].strip()
 
     logger.info(f"prompt: {prompt}")
     logger.info("Ответ сгенерирован: %s", answer or "[пусто]")
