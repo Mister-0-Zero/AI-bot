@@ -8,3 +8,4 @@
 /.pre-commit-config.yaml
 /app/data/
 /app/models/embeding_model/
+/.mypy_cache/

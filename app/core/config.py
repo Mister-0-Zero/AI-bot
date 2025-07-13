@@ -1,10 +1,12 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Основные настройки
+BASE_DIR = Path(__file__).resolve().parent.parent
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -23,6 +25,11 @@ MODEL_TOKEN = os.getenv("MODEL_TOKEN", "")
 MODEL_ID = os.getenv("MODEL_ID", "google/gemma-2b-it")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
+HF_CACHE_DIR = BASE_DIR / ".models"
+CHROMA_DIR = BASE_DIR / "data" / "chroma"
+EMBEDDING_DIR = BASE_DIR / "models" / "embeding_model"
+os.environ["HF_HOME"] = str(HF_CACHE_DIR)
 
 # Проверка обязательных переменных
 if not BOT_TOKEN:

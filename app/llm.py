@@ -1,18 +1,15 @@
-import os
 from functools import lru_cache
 
 import torch
 from huggingface_hub import login
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from app.core.config import MODEL_ID, MODEL_TOKEN
+from app.core.config import HF_CACHE_DIR, MODEL_ID, MODEL_TOKEN
 from app.core.logging_config import get_logger
 
 login(token=MODEL_TOKEN)
 
 logger = get_logger(__name__)
-
-HF_CACHE_DIR = os.getenv("HF_HOME", "/mnt/models")
 
 
 @lru_cache(maxsize=1)
