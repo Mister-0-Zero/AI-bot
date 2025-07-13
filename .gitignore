@@ -3,7 +3,8 @@
 **/__pycache__/
 *.pyc
 /.models
-/fine-tuning_model/
 /.vscode/
 /dev-requirements.txt
 /.pre-commit-config.yaml
+/app/data/
+/app/models/embeding_model/
