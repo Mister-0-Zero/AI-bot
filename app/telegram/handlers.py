@@ -40,18 +40,14 @@ async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     await update.message.chat.send_action("typing")
 
-    # Сохраняем реплику пользователя
-    await push_history(user_id, f"Пользователь: {user_text}")
+    await push_history(user_id, "user", user_text)
 
-    # Получаем обновлённую историю
     history = await get_history(user_id)
 
-    # Вызываем генерацию с историей
     loop = asyncio.get_running_loop()
     answer = await loop.run_in_executor(None, generate_reply, history)
 
-    # Сохраняем ответ бота
-    await push_history(user_id, f"Ассистент: {answer}")
+    await push_history(user_id, "assistant", answer)
 
     await update.message.reply_text(answer)
 

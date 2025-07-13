@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+os.environ["HF_HUB_DISABLE_SYMLINKS"] = "true"
+
 # Основные настройки
 BASE_DIR = Path(__file__).resolve().parent.parent
 BOT_TOKEN = os.getenv("BOT_TOKEN")

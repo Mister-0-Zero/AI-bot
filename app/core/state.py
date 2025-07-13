@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import secrets
@@ -33,16 +34,17 @@ if REDIS_URL:
         return int(tid) if tid else None
 
     # --------- ХРАНЕНИЕ ИСТОРИИ ЧАТА ---------
-    async def push_history(user_id: int, message: str) -> None:
+    async def push_history(user_id: int, role: str, text: str) -> None:
         r = await get_redis()
         key = f"chat_history:{user_id}"
-        await r.rpush(key, message)
+        await r.rpush(key, json.dumps({"role": role, "text": text}))
         await r.ltrim(key, -HISTORY_LIMIT, -1)
 
-    async def get_history(user_id: int) -> list[str]:
+    async def get_history(user_id: int) -> list[dict]:
         r = await get_redis()
         key = f"chat_history:{user_id}"
-        return await r.lrange(key, 0, -1)
+        messages = await r.lrange(key, 0, -1)
+        return [json.loads(m) for m in messages]
 
     async def clear_history(user_id: int) -> None:
         r = await get_redis()
@@ -53,7 +55,7 @@ if REDIS_URL:
 # --------- FALLBACK: без Redis (локальный режим) ---------
 else:
     _cache_state: dict[str, tuple[int, datetime]] = {}
-    _cache_history: dict[int, list[str]] = {}
+    _cache_history: dict[int, list[dict]] = {}
 
     async def put_state(tid: int) -> str:
         state = secrets.token_urlsafe(16)
@@ -70,13 +72,13 @@ else:
             return None
         return tid
 
-    async def push_history(user_id: int, message: str) -> None:
+    async def push_history(user_id: int, role: str, text: str) -> None:
         history = _cache_history.setdefault(user_id, [])
-        history.append(message)
+        history.append({"role": role, "text": text})
         if len(history) > HISTORY_LIMIT:
             _cache_history[user_id] = history[-HISTORY_LIMIT:]
 
-    async def get_history(user_id: int) -> list[str]:
+    async def get_history(user_id: int) -> list[dict]:
         return _cache_history.get(user_id, [])
 
     async def clear_history(user_id: int) -> None:
