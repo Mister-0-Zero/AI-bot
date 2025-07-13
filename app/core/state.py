@@ -11,34 +11,43 @@ REDIS_URL = os.getenv("REDIS_URL")
 
 
 if REDIS_URL:
-    import redis.asyncio as redis  # type: ignore
 
-    _r = redis.from_url(REDIS_URL, decode_responses=True)
+    async def get_redis():
+        import redis.asyncio as redis  # type: ignore
+
+        return await redis.from_url(REDIS_URL, decode_responses=True)
 
     # --------- ХРАНЕНИЕ ВРЕМЕННОГО STATE (OAuth) ---------
     async def put_state(tid: int) -> str:
+        r = await get_redis()
         state = secrets.token_urlsafe(16)
-        await _r.setex(f"oauth_state:{state}", TTL_SEC, str(tid))
+        await r.setex(f"oauth_state:{state}", TTL_SEC, str(tid))
         logger.debug("State %s saved to Redis for %s", state, tid)
         return state
 
     async def pop_state(state: str) -> int | None:
-        tid = await _r.getdel(f"oauth_state:{state}")
+        r = await get_redis()
+        key = f"oauth_state:{state}"
+        tid = await r.get(key)
+        await r.delete(key)
         return int(tid) if tid else None
 
     # --------- ХРАНЕНИЕ ИСТОРИИ ЧАТА ---------
     async def push_history(user_id: int, message: str) -> None:
+        r = await get_redis()
         key = f"chat_history:{user_id}"
-        await _r.rpush(key, message)
-        await _r.ltrim(key, -HISTORY_LIMIT, -1)
+        await r.rpush(key, message)
+        await r.ltrim(key, -HISTORY_LIMIT, -1)
 
     async def get_history(user_id: int) -> list[str]:
+        r = await get_redis()
         key = f"chat_history:{user_id}"
-        return await _r.lrange(key, 0, -1)
+        return await r.lrange(key, 0, -1)
 
     async def clear_history(user_id: int) -> None:
+        r = await get_redis()
         key = f"chat_history:{user_id}"
-        await _r.delete(key)
+        await r.delete(key)
 
 
 # --------- FALLBACK: без Redis (локальный режим) ---------
