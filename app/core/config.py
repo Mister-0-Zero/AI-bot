@@ -24,11 +24,11 @@ DATABASE_URL = os.getenv("DATABASE_URL_LOCAL")
 
 MODEL_TOKEN = os.getenv("MODEL_TOKEN", "")
 
-MODEL_ID = os.getenv("MODEL_ID", "google/gemma-2b-it")
+MODEL_ID = str((BASE_DIR.parent / ".model").resolve())
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
-HF_CACHE_DIR = BASE_DIR / ".." / ".models"
+HF_CACHE_DIR = str((BASE_DIR.parent / ".model" / "hf-cache").resolve())
 CHROMA_DIR = BASE_DIR / "data" / "chroma"
 EMBEDDING_DIR = BASE_DIR / "models" / "embeding_model"
 os.environ["HF_HOME"] = str(HF_CACHE_DIR)

@@ -3,6 +3,7 @@ import os
 import threading
 from contextlib import asynccontextmanager
 from functools import partial
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI
@@ -25,31 +26,39 @@ login(token=MODEL_TOKEN)  # Авторизация Hugging Face
 
 
 async def _ensure_model():
-    """Скачивает веса модели в HF_CACHE_DIR, если их там ещё нет."""
+    """
+    ▸ Если MODEL_ID указывает на существующую локальную папку — ничего не скачиваем.
+    ▸ Иначе считаем, что это repo_id на Hugging Face и загружаем веса в HF_CACHE_DIR.
+    """
+    model_path = Path(MODEL_ID).expanduser().resolve()
+
+    # 1️⃣  Локальная модель уже есть
+    if model_path.is_dir():
+        logger.info("✅ Локальная модель найдена: %s", model_path)
+        return
+
+    # 2️⃣  Скачиваем репозиторий с Hugging Face
+    logger.info("⬇️  Скачивание модели %s в %s", MODEL_ID, HF_CACHE_DIR)
+
+    target_dir = os.path.join(HF_CACHE_DIR, f"models--{MODEL_ID.replace('/', '--')}")
+
+    if os.path.isdir(target_dir):
+        logger.info("✅ Модель уже в кеше: %s", target_dir)
+        return
+
+    loop = asyncio.get_running_loop()
     try:
-        logger.info("Начало скачивания модели %s в %s", MODEL_ID, HF_CACHE_DIR)
-
-        target_dir = os.path.join(
-            HF_CACHE_DIR, f"models--{MODEL_ID.replace('/', '--')}"
-        )
-
-        if os.path.isdir(target_dir):
-            logger.info("✅ Модель уже в кеше: %s", target_dir)
-            return
-
-        loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
             partial(
                 snapshot_download,
                 repo_id=MODEL_ID,
                 cache_dir=HF_CACHE_DIR,
-                allow_patterns=["*.safetensors", "*.json", "*.txt"],
+                allow_patterns=["*.safetensors", "*.bin", "*.json", "*.txt"],
                 resume_download=True,
             ),
         )
         logger.info("✅ Модель успешно скачана")
-
     except Exception as e:
         logger.error("❌ Ошибка при скачивании модели %s: %s", MODEL_ID, e)
         raise RuntimeError(f"Не удалось скачать модель {MODEL_ID}: {e}") from e

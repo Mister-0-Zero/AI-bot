@@ -36,3 +36,5 @@ chromadb
 langchain
 langchain-community
 langchain-huggingface
+
+bitsandbytes
