@@ -21,15 +21,11 @@ WEBHOOK_URL = (
 )
 HF_CACHE_DIR = os.getenv("HF_HOME", "/mnt/models")
 
-# Авторизация Hugging Face (на случай запуска отдельно)
-login(token=MODEL_TOKEN)
+login(token=MODEL_TOKEN)  # Авторизация Hugging Face
 
 
 async def _ensure_model():
-    """
-    Скачивает веса модели в HF_CACHE_DIR, если их там ещё нет.
-    Вызывается один раз при старте приложения.
-    """
+    """Скачивает веса модели в HF_CACHE_DIR, если их там ещё нет."""
     try:
         logger.info("Начало скачивания модели %s в %s", MODEL_ID, HF_CACHE_DIR)
 
@@ -41,8 +37,6 @@ async def _ensure_model():
             logger.info("✅ Модель уже в кеше: %s", target_dir)
             return
 
-        logger.info("⬇️  Скачиваю модель %s в %s …", MODEL_ID, HF_CACHE_DIR)
-
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
@@ -51,11 +45,9 @@ async def _ensure_model():
                 repo_id=MODEL_ID,
                 cache_dir=HF_CACHE_DIR,
                 allow_patterns=["*.safetensors", "*.json", "*.txt"],
-                local_files_only=False,
                 resume_download=True,
             ),
         )
-
         logger.info("✅ Модель успешно скачана")
 
     except Exception as e:
@@ -69,12 +61,12 @@ async def wait_for_webhook_ready(url: str, timeout: int = 30):
             async with httpx.AsyncClient() as client:
                 r = await client.get(url)
                 if r.status_code in {200, 405}:
-                    logger.info("Webhook URL стал доступен на %d секунде", i + 1)
+                    logger.info("Webhook URL стал доступен на %d-й секунде", i + 1)
                     return True
         except Exception:
             pass
         await asyncio.sleep(1)
-    logger.warning("Webhook URL не стал доступен за %s секунд: %s", timeout, url)
+    logger.warning("Webhook URL не стал доступен за %s с: %s", timeout, url)
     return False
 
 
@@ -87,17 +79,17 @@ async def lifespan(app: FastAPI):
     if USE_POLLING:
 
         def _run():
-            import asyncio
-
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(app_tg.run_polling())
+            # ОТКЛЮЧАЕМ регистрацию сигналов — нужно для Linux (uvicorn/uvloop)
+            loop.run_until_complete(app_tg.run_polling(stop_signals=None))
 
         threading.Thread(target=_run, daemon=True).start()
+
     else:
         await app_tg.initialize()
         await wait_for_webhook_ready(WEBHOOK_URL)
-        logger.info(f"Установка webhook: {WEBHOOK_URL}")
+        logger.info("Установка webhook: %s", WEBHOOK_URL)
         await app_tg.bot.set_webhook(url=WEBHOOK_URL)
 
     yield
