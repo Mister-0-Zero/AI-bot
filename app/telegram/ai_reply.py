@@ -1,68 +1,74 @@
-import torch
-
+from app.ai.groq_config import chat_completion
 from app.core.logging_config import get_logger
 from app.core.vector_store import load_vector_db
-from app.llm import get_model
 
 logger = get_logger(__name__)
-MAX_NEW_TOKENS = 120
+MAX_NEW_TOKENS = 350
 
 
-def search_knowledge(query: str, k: int = 5) -> list[str]:
+def search_knowledge(
+    query: str,
+    user_id: int,
+    k: int = 8,
+) -> list[str]:
+    """
+    Возвращает релевантные чанки из базы пользователя.
+    Для коротких ( < 3 слов) запросов ничего не ищет.
+    """
+    q = query.strip()
+    words = q.split()
+
+    # ⚑ 1. Мелкие сервис-фразы вообще не требуют файлового контекста
+    if len(words) < 3:
+        return []
+
     db = load_vector_db()
-    results = db.similarity_search(query, k=k)
-    return [r.page_content for r in results]
 
-
-def generate_reply(history: list[dict]) -> str:
-    latest_user_input = next(
-        (msg["text"] for msg in reversed(history) if msg["role"] == "user"), "..."
+    # ⚑ 2. Сразу берём (Document, score)
+    docs_scores = db.similarity_search_with_relevance_scores(
+        q,
+        k=k,
+        filter={"user_id": user_id},  # ищем только среди файлов этого пользователя
     )
 
-    logger.info("Генерация ответа, последнее сообщение: %s", latest_user_input)
+    # ⚑ 3. Динамический порог: чем короче запрос, тем выше порог
+    min_score = 0.65 if len(words) == 3 else 0.55 if len(words) == 4 else 0.45
 
-    context_chunks = search_knowledge(latest_user_input)
+    return [doc.page_content for doc, score in docs_scores if score >= min_score]
+
+
+MAX_MSGS = 6
+
+
+def generate_reply(history: list[dict], user_id: int) -> str:
+    latest_user_input = (
+        next((m["text"] for m in reversed(history) if m["role"] == "user"), "...")
+        .strip()
+        .lower()
+    )
+
+    # ── RAG-контекст ───────────────────────────────────────────────
+    context_chunks = search_knowledge(latest_user_input, user_id)
     if context_chunks:
-        context = "\n\n".join(context_chunks)
+        context_block = "Контекст:\n" + "\n\n".join(context_chunks)
         system_prompt = (
-            "Ты полезный AI-ассистент. "
-            "Используй контекст из файлов Google Диска для точных, кратких и понятных ответов.\n\n"
-            f"Контекст:\n{context}"
+            "Ты полезный AI-ассистент. Используй контекст из файлов Google Диска "
+            "для точных, кратких и понятных ответов.\n\n" + context_block
         )
-        logger.info("Добавлен контекст (%d чанков)", len(context_chunks))
     else:
-        system_prompt = (
-            "Ты полезный AI-ассистент. "
-            "Отвечай кратко и понятно на основе истории диалога."
-        )
-        logger.info("Контекст не найден")
+        system_prompt = "Ты полезный AI-ассистент. Отвечай кратко и понятно на основе истории диалога."
+    # ── messages ──────────────────────────────────────────────────
+    messages = [{"role": "system", "content": system_prompt}]
+    for msg in history[-MAX_MSGS:]:
+        messages.append({"role": msg["role"], "content": msg["text"].strip()})
 
-    # 💬 Формирование промпта
-    prompt = f"<|system|>\n{system_prompt}\n"
-    for msg in history:
-        prompt += f"<|{msg['role']}|>\n{msg['text'].strip()}\n"
-    prompt += "<|assistant|>\n"
+    logger.info("System prompt подготовлен")
 
-    logger.info("Промпт сформирован: %s...", prompt)
+    # ── вызов Groq ────────────────────────────────────────────────
+    try:
+        answer = chat_completion(messages, max_tokens=350, temperature=0.7)
+    except Exception as e:
+        logger.exception("Groq error: %s", e)
+        return "⚠️ Не удалось получить ответ модели. Попробуйте ещё раз."
 
-    tokenizer, model = get_model()
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
-
-    with torch.no_grad():
-        outputs = model.generate(
-            input_ids=inputs["input_ids"],
-            attention_mask=inputs["attention_mask"],
-            max_new_tokens=MAX_NEW_TOKENS,
-            pad_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.eos_token_id,
-            do_sample=False,
-        )
-
-    decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    answer = decoded.split("<|assistant|>")[-1].strip()
-    for stop_token in ["<|user|>", "user:", "assistant:", "you:", "ai:"]:
-        if stop_token in answer.lower():
-            answer = answer.split(stop_token)[0].strip()
-    logger.info("PROMPT:\n%s\n\nRESPONSE:\n%s", prompt, answer)
-    logger.info("Ответ сгенерирован: %s", answer or "[пусто]")
     return answer or "🤖 Пока не знаю, как ответить."
