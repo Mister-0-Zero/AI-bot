@@ -30,7 +30,7 @@ async def read_files_from_drive(
             "https://www.googleapis.com/drive/v3/files",
             headers=headers,
             params={
-                "pageSize": 5,
+                "pageSize": 100,  # Запрашиваем больше файлов, чтобы отфильтровать неподходящие
                 "fields": "files(id, name, mimeType)",
                 "q": "trashed = false",
             },
@@ -42,12 +42,19 @@ async def read_files_from_drive(
     result: list[tuple[str, str, int]] = []
 
     for file in files:
+        if len(result) >= 5:
+            break  # Считано достаточно подходящих файлов
+
         file_name = file["name"]
         mime_type = file["mimeType"]
         file_id = file["id"]
-        logger.info("🔍 Обрабатываю %s (id=%s, mime=%s)", file_name, file_id, mime_type)
 
+        if mime_type not in TEXT_MIME_TYPES:
+            continue  # Пропускаем неподдерживаемые форматы
+
+        logger.info("🔍 Обрабатываю %s (id=%s, mime=%s)", file_name, file_id, mime_type)
         text = await download_and_extract_text(file_id, mime_type, headers, file_name)
+
         if text:
             logger.info("✅ Прочитал %s", file_name)
             await on_progress(f"✅ Считан файл: {file_name}")
@@ -58,9 +65,10 @@ async def read_files_from_drive(
                 f"⚠️ Ошибка чтения файла: {file_name}, поддерживаются только txt, pdf, docx"
             )
 
-    if not files:
-        logger.info("ℹ️ Нет файлов для чтения")
-        await on_progress("ℹ️ В Google Диске не найдено файлов.")
+    if not result:
+        await on_progress("ℹ️ Подходящих файлов не найдено в Google Диске.")
+    else:
+        await on_progress(f"📥 Успешно считано файлов: {len(result)}")
 
     logger.info("🏁 Завершил read_files_from_drive, всего прочитано: %d", len(result))
     return result
