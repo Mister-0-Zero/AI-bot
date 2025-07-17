@@ -20,6 +20,7 @@ async def cmd_connect_google(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     telegram_id = update.effective_user.id
     logger.info("🔗 Авторизация запрошена пользователем %s", telegram_id)
+    logger.info("redirect_uri: %s", f"http://{REDIRECT_DOMAIN}/oauth2callback")
 
     state = await put_state(telegram_id)
     auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(
