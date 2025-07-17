@@ -1,4 +1,3 @@
-# ─── vector_store.py ──────────────────────────────────────────────────────────
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, List, Set, Tuple
@@ -94,7 +93,10 @@ async def store_documents_async(
                 continue
 
             # добавление новых чанков
-            chunks = splitter.split_text(text)
+            header = f"=== FILE: {file_name.lower()} ===\n"
+            text_with_header = header + text
+            chunks = splitter.split_text(text_with_header)
+
             ids = [f"{file_id}_{uuid4().hex[:8]}_{i}" for i in range(len(chunks))]
             metadatas = [
                 {"file_id": file_id, "file_name": file_name, "user_id": user_id}
