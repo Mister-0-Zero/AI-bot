@@ -45,7 +45,7 @@ async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     history = await get_history(user_id)
 
     loop = asyncio.get_running_loop()
-    answer = await loop.run_in_executor(None, generate_reply, history)
+    answer = await loop.run_in_executor(None, generate_reply, history, user_id)
 
     await push_history(user_id, "assistant", answer)
 
