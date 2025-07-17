@@ -3,6 +3,7 @@
 # Базовые зависимости
 numpy>=1.26
 accelerate
+torch>=2.3.0
 
 # Telegram бот
 python-telegram-bot[asyncio]>=21,<23
@@ -24,10 +25,12 @@ python-docx>=1.1.0
 PyMuPDF>=1.22.0
 redis>=4.0
 types-redis
+pandas>=2.2.0
+openpyxl>=3.1.0
 
 # HuggingFace и трансформеры
 huggingface_hub[hf_xet]>=0.23
-sentence-transformers
+sentence-transformers>=2.6.1
 
 # LangChain + Chroma
 chromadb

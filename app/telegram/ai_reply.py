@@ -47,6 +47,8 @@ def generate_reply(history: list[dict], user_id: int) -> str:
         .lower()
     )
 
+    logger.info("Пользовательский ввод: %s", latest_user_input)
+
     # ── RAG-контекст ───────────────────────────────────────────────
     context_chunks = search_knowledge(latest_user_input, user_id)
     if context_chunks:
@@ -57,12 +59,13 @@ def generate_reply(history: list[dict], user_id: int) -> str:
         )
     else:
         system_prompt = "Ты полезный AI-ассистент. Отвечай кратко и понятно на основе истории диалога."
+
     # ── messages ──────────────────────────────────────────────────
     messages = [{"role": "system", "content": system_prompt}]
     for msg in history[-MAX_MSGS:]:
         messages.append({"role": msg["role"], "content": msg["text"].strip()})
 
-    logger.info("System prompt подготовлен")
+    logger.info("Сообщения для Groq: %s", messages)
 
     # ── вызов Groq ────────────────────────────────────────────────
     try:
@@ -70,5 +73,7 @@ def generate_reply(history: list[dict], user_id: int) -> str:
     except Exception as e:
         logger.exception("Groq error: %s", e)
         return "⚠️ Не удалось получить ответ модели. Попробуйте ещё раз."
+
+    logger.info("Ответ от Groq: %s", answer)
 
     return answer or "🤖 Пока не знаю, как ответить."

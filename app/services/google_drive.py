@@ -4,7 +4,9 @@ from typing import Awaitable, Callable, Union
 import filetype
 import httpx
 
+from app.services.reader.csv_reader import CsvReader
 from app.services.reader.docx_reader import DocxReader
+from app.services.reader.excel_reader import ExcelReader
 from app.services.reader.pdf_reader import PdfReader
 from app.services.reader.txt_reader import TxtReader
 
@@ -14,7 +16,11 @@ TEXT_MIME_TYPES = {
     "text/plain": "txt",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
     "application/pdf": "pdf",
+    "text/csv": "csv",  # ← CSV
+    "application/vnd.ms-excel": "csv",  # .csv в Drive
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",  # .xlsx
 }
+
 
 MAX_FILE_SIZE = 10 * 1024
 
@@ -117,7 +123,7 @@ async def download_and_extract_text(
             )
 
     # Выбор подходящего ридера
-    ReaderType = Union[TxtReader, PdfReader, DocxReader]
+    ReaderType = Union[TxtReader, PdfReader, DocxReader, CsvReader, ExcelReader]
     reader: ReaderType | None = None
 
     if mime_type == "text/plain":
@@ -129,6 +135,12 @@ async def download_and_extract_text(
         == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ):
         reader = DocxReader()
+    elif mime_type in {"text/csv", "application/vnd.ms-excel"}:
+        reader = CsvReader()
+    elif (
+        mime_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ):
+        reader = ExcelReader()
 
     if not reader:
         logger.info("⏭ Пропускаю %s — неподдерживаемый MIME (%s)", file_name, mime_type)
