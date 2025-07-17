@@ -2,7 +2,7 @@ from io import BytesIO
 
 import pandas as pd
 
-from .base import BaseReader
+from .base_reader import BaseReader
 
 
 class ExcelReader(BaseReader):
