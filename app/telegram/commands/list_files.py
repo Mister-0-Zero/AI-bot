@@ -15,14 +15,15 @@ async def cmd_list_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
         results = db._collection.get(include=["metadatas"], where={"user_id": user_id})
         metadatas = results.get("metadatas", [])
 
-        file_ids = sorted(
-            set(meta["file_id"] for meta in metadatas if "file_id" in meta)
+        file_names = sorted(
+            {meta.get("file_name") or meta["file_id"] for meta in metadatas}
         )
-        if not file_ids:
+
+        if not file_names:
             await update.message.reply_text("ℹ️ Вы ещё не загружали файлы.")
         else:
             text = "📂 Ваши загруженные файлы:\n\n" + "\n".join(
-                f"• {f}" for f in file_ids
+                f"• {name}" for name in file_names
             )
             await update.message.reply_text(text)
     except Exception as e:

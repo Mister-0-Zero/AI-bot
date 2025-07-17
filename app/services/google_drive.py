@@ -1,5 +1,5 @@
 import logging
-from typing import Awaitable, Callable, Union
+from typing import Awaitable, Callable
 
 import filetype
 import httpx
@@ -22,110 +22,124 @@ TEXT_MIME_TYPES = {
 }
 
 
-MAX_FILE_SIZE = 10 * 1024
+MAX_FILES_PER_RUN = 10
 
 
 async def read_files_from_drive(
-    access_token: str, user_id: int, on_progress: Callable[[str], Awaitable[None]]
-) -> list[tuple[str, str, int]]:
-    logger.info("🚀 Старт read_files_from_drive, access_token=%s...", access_token[:10])
-    headers = {"Authorization": f"Bearer {access_token}"}
+    access_token: str,
+    user_id: int,
+    on_progress: Callable[[str], Awaitable[None]],
+) -> list[tuple[str, str, str, int]]:
+    """
+    Считывает до 10 текстовых файлов из Google Drive.
+    Возвращает список (file_id, text, user_id) только для успешно распарсенных.
+    """
+    logger.info("🚀 read_files_from_drive started, token=%s...", access_token[:10])
+    await on_progress("🔄 Ищу файлы в Google Диске…")
 
+    # --- 1. Получаем список файлов
+    headers = {"Authorization": f"Bearer {access_token}"}
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             "https://www.googleapis.com/drive/v3/files",
             headers=headers,
             params={
-                "pageSize": 100,  # Запрашиваем больше файлов, чтобы отфильтровать неподходящие
-                "fields": "files(id, name, mimeType)",
+                "pageSize": 100,
+                "fields": "files(id,name,mimeType)",
                 "q": "trashed = false",
             },
         )
         resp.raise_for_status()
         files = resp.json().get("files", [])
 
-    logger.info("🗂 Получено %d файлов из Drive", len(files))
-    result: list[tuple[str, str, int]] = []
+    logger.info("🗂 Найдено %d файлов в Drive", len(files))
 
-    for file in files:
-        if len(result) >= 5:
-            break  # Считано достаточно подходящих файлов
+    # --- 2. Фильтрация: оставляем только поддерживаемые MIME
+    candidates = [f for f in files if f["mimeType"] in TEXT_MIME_TYPES][
+        :MAX_FILES_PER_RUN
+    ]
+    logger.info("📄 Подходящих файлов: %d", len(candidates))
 
-        file_name = file["name"]
-        mime_type = file["mimeType"]
-        file_id = file["id"]
+    result: list[tuple[str, str, str, int]] = []
 
-        if mime_type not in TEXT_MIME_TYPES:
-            continue  # Пропускаем неподдерживаемые форматы
+    # --- 3. Обрабатываем каждый файл
+    for meta in candidates:
+        file_id = meta["id"]
+        file_name = meta["name"]
+        mime_type = meta["mimeType"]
 
+        await on_progress(f"🔍 Читаю: {file_name}")
         logger.info("🔍 Обрабатываю %s (id=%s, mime=%s)", file_name, file_id, mime_type)
+
         text = await download_and_extract_text(file_id, mime_type, headers, file_name)
 
         if text:
-            logger.info("✅ Прочитал %s", file_name)
-            await on_progress(f"✅ Считан файл: {file_name}")
-            result.append((file_name, text, user_id))
+            result.append((file_id, file_name, text, user_id))
+            await on_progress(f"✅ Готово: {file_name}")
         else:
-            logger.warning("⚠️ Не удалось прочитать %s", file_name)
-            await on_progress(
-                f"⚠️ Ошибка чтения файла: {file_name}, поддерживаются только txt, pdf, docx"
-            )
+            await on_progress(f"⚠️ Пропущен: {file_name}")
 
-    if not result:
-        await on_progress("ℹ️ Подходящих файлов не найдено в Google Диске.")
-    else:
-        await on_progress(f"📥 Успешно считано файлов: {len(result)}")
+        if len(result) >= MAX_FILES_PER_RUN:
+            break  # лимит на один запуск
 
-    logger.info("🏁 Завершил read_files_from_drive, всего прочитано: %d", len(result))
+    # --- 4. Итог
+    await on_progress(f"📥 Успешно считано файлов: {len(result)}")
+    logger.info("🏁 read_files_from_drive finished. total=%d", len(result))
     return result
 
 
+MAX_FILE_SIZE = 100 * 1024
+
+
 async def download_and_extract_text(
-    file_id: str, mime_type: str, headers: dict, file_name: str
+    file_id: str,
+    mime_type: str,
+    headers: dict,
+    file_name: str,
 ) -> str | None:
     """
-    Скачивает файл (≤10 КБ), безопасно извлекает текст.
-    При неизвестном mime_type пытается определить его по содержимому (через filetype).
+    Скачивает файл, дважды контролируя лимит 10 КБ, а затем извлекает текст.
+    Возвращает None, если файл превышает лимит или формат не поддерживается.
     """
     export_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
 
-    try:
-        async with httpx.AsyncClient() as client:
-            # Проверка размера файла
-            head_resp = await client.head(export_url, headers=headers)
-            head_resp.raise_for_status()
-            size_str = head_resp.headers.get("Content-Length")
-            if size_str and int(size_str) > MAX_FILE_SIZE:
-                logger.warning("Файл %s превышает 10 КБ (%s байт)", file_id, size_str)
+    async with httpx.AsyncClient() as client:
+        # ── Предварительный HEAD-запрос (может не сработать, но пробуем)
+        try:
+            head = await client.head(export_url, headers=headers, follow_redirects=True)
+            size_hdr = head.headers.get("Content-Length")
+            if size_hdr and int(size_hdr) > MAX_FILE_SIZE:
+                logger.warning(
+                    "⏭ %s > 100 КБ (по Content-Length: %s байт)", file_name, size_hdr
+                )
                 return None
+        except Exception as e:
+            logger.debug("HEAD %s не удался: %s (продолжаю)", file_name, e)
 
-            # Скачивание файла
-            resp = await client.get(export_url, headers=headers)
+        # ── Скачиваем файл
+        try:
+            resp = await client.get(export_url, headers=headers, follow_redirects=True)
             resp.raise_for_status()
             content_bytes = resp.content
+        except Exception as e:
+            logger.warning("❌ Ошибка загрузки %s: %s", file_name, e)
+            return None
 
-    except Exception as e:
-        logger.warning("Ошибка загрузки файла %s: %s", file_id, e)
+    # ── Финальная проверка фактического размера
+    if len(content_bytes) > MAX_FILE_SIZE:
+        logger.warning(
+            "⏭ %s > 100 КБ (фактически: %d байт)", file_name, len(content_bytes)
+        )
         return None
 
-    # Автоопределение MIME
+    # ── Уточняем MIME по содержимому, если нужно
     if mime_type not in TEXT_MIME_TYPES:
         kind = filetype.guess(content_bytes)
         if kind:
-            guessed_mime = kind.mime
-            logger.info(
-                "🔎 MIME от Drive: %s → определён как %s", mime_type, guessed_mime
-            )
-            mime_type = guessed_mime
-        else:
-            logger.info(
-                "❓ Не удалось определить MIME файла %s по содержимому", file_name
-            )
+            mime_type = kind.mime
 
-    # Выбор подходящего ридера
-    ReaderType = Union[TxtReader, PdfReader, DocxReader, CsvReader, ExcelReader]
-    reader: ReaderType | None = None
-
+    # ── Выбираем ридер
+    reader: TxtReader | PdfReader | DocxReader | CsvReader | ExcelReader | None = None
     if mime_type == "text/plain":
         reader = TxtReader()
     elif mime_type == "application/pdf":
@@ -141,13 +155,13 @@ async def download_and_extract_text(
         mime_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     ):
         reader = ExcelReader()
-
-    if not reader:
-        logger.info("⏭ Пропускаю %s — неподдерживаемый MIME (%s)", file_name, mime_type)
+    else:
+        logger.info("⏭ %s — неподдерживаемый MIME (%s)", file_name, mime_type)
         return None
 
+    # ── Читаем текст
     try:
         return await reader.read(content_bytes)
     except Exception as e:
-        logger.warning("Ошибка чтения %s (%s): %s", file_name, mime_type, e)
+        logger.warning("⚠️ Ошибка чтения %s: %s", file_name, e)
         return None
