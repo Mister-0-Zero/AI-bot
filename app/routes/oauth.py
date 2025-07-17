@@ -28,7 +28,7 @@ async def exchange_code(code: str) -> dict:
                 "code": code,
                 "client_id": CLIENT_ID,
                 "client_secret": CLIENT_SECRET,
-                "redirect_uri": f"http://{REDIRECT_DOMAIN}/oauth2callback",
+                "redirect_uri": f"https://{REDIRECT_DOMAIN}/oauth2callback",
                 "grant_type": "authorization_code",
             },
         )
