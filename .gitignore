@@ -2,7 +2,7 @@
 /.env
 **/__pycache__/
 *.pyc
-/.model
+/model
 /.vscode/
 /dev-requirements.txt
 /.pre-commit-config.yaml
