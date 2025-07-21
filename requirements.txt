@@ -7,6 +7,7 @@ torch>=2.3.0
 
 # Telegram бот
 python-telegram-bot[asyncio]>=21,<23
+tiktoken
 
 # Web сервер
 fastapi>=0.111

@@ -2,6 +2,7 @@ import asyncio
 import traceback
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
 from app.core.logging_config import get_logger
@@ -34,22 +35,29 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
 
+MAX_TG_CHARS = 4096  # лимит Telegram
+
+
 async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     user_id = update.effective_user.id
 
+    # показываем «печатает…»
     await update.message.chat.send_action("typing")
 
     await push_history(user_id, "user", user_text)
-
     history = await get_history(user_id)
 
     loop = asyncio.get_running_loop()
     answer = await loop.run_in_executor(None, generate_reply, history, user_id)
-
     await push_history(user_id, "assistant", answer)
 
-    await update.message.reply_text(answer)
+    # ── отправка длинного текста без ошибки 400 ──
+    for i in range(0, len(answer), MAX_TG_CHARS):
+        await update.message.reply_text(
+            answer[i : i + MAX_TG_CHARS],
+            parse_mode=ParseMode.HTML,  # ← важно!
+        )
 
 
 def register_handlers():
