@@ -79,7 +79,14 @@ async def store_documents_async(
         for file_id, file_name, text in files:
             # перезапись, если такой file_id уже был
             if file_id in existing:
-                db._collection.delete(where={"file_id": file_id, "user_id": user_id})
+                db._collection.delete(
+                    where={
+                        "$and": [
+                            {"file_id": {"$eq": file_id}},
+                            {"user_id": {"$eq": user_id}},
+                        ]
+                    }
+                )
                 existing.remove(file_id)
 
             # проверка лимита
