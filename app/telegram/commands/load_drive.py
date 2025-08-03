@@ -24,11 +24,18 @@ def _fetch_token_process(telegram_id: int, conn):
 
 async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
-    logger.info(
-        "🚀 Запуск команды /load_drive от пользователя telegram_id=%s", telegram_id
+    logger.info("🚀 /load_drive запущен, telegram_id=%s", telegram_id)
+
+    # 1️⃣  Разбор аргументов: all | список имён
+    raw_parts = (update.message.text or "").split(maxsplit=1)
+    argument = raw_parts[1].strip() if len(raw_parts) > 1 else "all"
+    selected_names = (
+        None
+        if argument.lower() == "all"
+        else [n.strip() for n in argument.split(",") if n.strip()]
     )
 
-    # Получение access_token в изолированном процессе
+    # 2️⃣  Получаем access_token в изолированном процессе
     parent_conn, child_conn = multiprocessing.Pipe()
     proc = multiprocessing.Process(
         target=_fetch_token_process, args=(telegram_id, child_conn)
@@ -38,51 +45,45 @@ async def cmd_load_drive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     proc.join()
 
     if isinstance(result, Exception):
-        logger.warning("❌ Не удалось получить токен: %s", result)
+        logger.warning("❌ Токен не получен: %s", result)
         await update.message.reply_text(
             "❌ Не удалось получить токен Google. Используй /connect_google"
         )
         return
 
-    access_token = result
-    logger.info("✅ Токен получен успешно для telegram_id=%s", telegram_id)
+    access_token: str = result
+    logger.info("✅ Токен получен, telegram_id=%s", telegram_id)
 
-    async def progress_callback(text: str):
-        logger.info("📥 %s", text)
+    async def progress(text: str):
+        logger.info(text)
         await update.message.reply_text(text)
 
-    await update.message.reply_text("🔄 Начинаю чтение файлов...")
-    logger.info("📁 Чтение файлов с Google Диска для telegram_id=%s", telegram_id)
+    await update.message.reply_text("🔄 Начинаю чтение файлов…")
 
+    # 3️⃣  Читаем файлы (all или выборочные)
     try:
         files = await read_files_from_drive(
-            access_token, telegram_id, progress_callback
-        )
-        logger.info(
-            "📚 Успешно считано файлов: %d для telegram_id=%s", len(files), telegram_id
+            access_token=access_token,
+            user_id=telegram_id,
+            on_progress=progress,
+            selected_names=selected_names,
         )
     except Exception as e:
-        logger.error("❌ Ошибка при чтении файлов: %s", str(e))
+        logger.error("❌ Ошибка чтения: %s", e)
         await update.message.reply_text("❌ Произошла ошибка при чтении файлов.")
         return
 
-    await update.message.reply_text(f"📚 Всего считано файлов: {len(files)}")
+    if not files:
+        await update.message.reply_text("⚠️ Файлы не найдены.")
+        return
 
+    await update.message.reply_text(f"📚 Считано файлов: {len(files)}")
+    await update.message.reply_text("💾 Сохраняю данные в базу знаний…")
+
+    # 4️⃣  Сохраняем в векторное хранилище
     try:
-        await update.message.reply_text(
-            "💾 Сохраняю данные в базу данных, налейте кофейку, это может занять время"
-        )
-        logger.info(
-            "💾 Сохранение в векторную БД начато для telegram_id=%s", telegram_id
-        )
-
         await store_documents_async(files)
-
-        logger.info(
-            "✅ Сохранение в векторную БД завершено для telegram_id=%s", telegram_id
-        )
         await update.message.reply_text("✅ Файлы успешно сохранены в базу знаний!")
-
     except Exception as e:
-        logger.error("❌ Ошибка при сохранении в векторную БД: %s", str(e))
+        logger.error("❌ Ошибка при сохранении: %s", e)
         await update.message.reply_text("❌ Ошибка при сохранении в базу знаний.")
