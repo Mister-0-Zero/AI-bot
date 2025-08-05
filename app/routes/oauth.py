@@ -28,7 +28,7 @@ async def exchange_code(code: str) -> dict:
                 "code": code,
                 "client_id": CLIENT_ID,
                 "client_secret": CLIENT_SECRET,
-                "redirect_uri": f"https://{REDIRECT_DOMAIN}/oauth2callback",
+                "redirect_uri": f"http://{REDIRECT_DOMAIN}/oauth2callback",
                 "grant_type": "authorization_code",
             },
         )
@@ -47,13 +47,8 @@ async def exchange_code(code: str) -> dict:
         userinfo_resp.raise_for_status()
         userinfo = userinfo_resp.json()
         logger.info("Информация о пользователе получена: %s", userinfo.get("email"))
-        logger.info("Tokens: %s", tokens)
-        logger.info(
-            "Сохраняем пользователя: access_token=%s, refresh_token=%s, email=%s",
-            access_token,
-            refresh_token,
-            userinfo.get("email"),
-        )
+        logger.info("Получен access_token: %s ...", access_token[:5])
+        logger.info("Получен refresh_token: %s ...", refresh_token[:5])
 
         return {
             "access_token": access_token,
@@ -84,6 +79,7 @@ async def oauth2callback(request: Request):
         refresh_token = tokens.get("refresh_token")
         expires_in = tokens.get("expires_in", 0)
         email = tokens.get("email")
+
         expiry = (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).replace(
             tzinfo=None
         )
@@ -98,8 +94,8 @@ async def oauth2callback(request: Request):
                     telegram_id=telegram_id,
                     access_token=access_token,
                     refresh_token=refresh_token,
-                    token_expiry=expiry,
                     email=email,
+                    token_expiry=expiry,
                 )
                 session.add(user)
                 logger.info("Создан новый пользователь: %s", telegram_id)
@@ -110,13 +106,12 @@ async def oauth2callback(request: Request):
                 user.token_expiry = expiry
                 logger.info("Обновлён пользователь: %s", telegram_id)
 
-            logger.info("Пользователь перед сохранением: %s", user.dict())
-
             try:
                 await session.commit()
                 logger.info("Изменения сохранены в БД")
-            except Exception:
-                logger.exception("Ошибка при сохранении пользователя в БД")
+            except Exception as e:
+                logger.error("Ошибка при сохранении: %s", str(e))
+                await session.rollback()
                 raise HTTPException(
                     status_code=500, detail="Ошибка при сохранении в БД"
                 )
