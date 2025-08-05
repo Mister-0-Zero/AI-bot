@@ -1,12 +1,16 @@
 import asyncio
 import traceback
 
+from sqlmodel import select
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
+from app.core.db import get_session
 from app.core.logging_config import get_logger
-from app.core.state import get_history, push_history
+from app.core.state import clear_history, get_history, push_history
+from app.core.vector_store import load_vector_db
+from app.models.user import User
 from app.telegram.ai_reply import generate_reply
 from app.telegram.bot import app_tg
 from app.telegram.commands import (
@@ -42,7 +46,35 @@ async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     user_id = update.effective_user.id
 
-    # показываем «печатает…»
+    # ⚠️ Проверка на подтверждение удаления (ДА / другое)
+    if ctx.user_data.get("confirm_clear_all"):
+        ctx.user_data.pop("confirm_clear_all")
+        if user_text.strip().upper() == "ДА":
+            try:
+                db = load_vector_db()
+                db._collection.delete(where={"user_id": user_id})
+                await clear_history(user_id)
+
+                async with get_session() as session:
+                    user = await session.scalar(
+                        select(User).where(User.telegram_id == user_id)
+                    )
+                    if user:
+                        await session.delete(user)
+                        await session.commit()
+
+                await update.message.reply_text(
+                    "✅ Всё удалено: токены, документы и история."
+                )
+            except Exception as e:
+                logger.error("❌ Ошибка при полной очистке: %s", str(e))
+                await update.message.reply_text("❌ Ошибка при удалении данных.")
+            return
+        else:
+            await update.message.reply_text("❌ Удаление отменено.")
+            return
+
+    # 🧠 Отправка запроса в ИИ
     await update.message.chat.send_action("typing")
 
     await push_history(user_id, "user", user_text)
@@ -52,11 +84,10 @@ async def msg_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     answer = await loop.run_in_executor(None, generate_reply, history, user_id)
     await push_history(user_id, "assistant", answer)
 
-    # ── отправка длинного текста без ошибки 400 ──
     for i in range(0, len(answer), MAX_TG_CHARS):
         await update.message.reply_text(
             answer[i : i + MAX_TG_CHARS],
-            parse_mode=ParseMode.HTML,  # ← важно!
+            parse_mode=ParseMode.HTML,
         )
 
 
