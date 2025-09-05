@@ -2,12 +2,15 @@ from .clear_knowledge import cmd_clear_knowledge
 from .connect_google import cmd_connect_google
 from .help import cmd_help
 from .instruction import cmd_instruction
+from .language import cb_set_language, cmd_language
 from .list_files import cmd_list_files
 from .load_drive import cmd_load_drive
 from .show_email import cmd_show_email
-from .start import cmd_start
+from .start import cb_start_menu, cb_start_set_language, cmd_start
 
 __all__ = [
+    "cb_start_set_language",
+    "cb_start_menu",
     "cmd_start",
     "cmd_help",
     "cmd_connect_google",
@@ -16,4 +19,6 @@ __all__ = [
     "cmd_show_email",
     "cmd_clear_knowledge",
     "cmd_instruction",
+    "cmd_language",
+    "cb_set_language",
 ]

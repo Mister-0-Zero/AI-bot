@@ -1,3 +1,4 @@
+# app/models/user.py
 from datetime import datetime, timezone
 from typing import Optional, cast
 
@@ -9,13 +10,16 @@ from app.core.security import decrypt, encrypt
 class User(SQLModel, table=True):
     telegram_id: int = Field(primary_key=True)
 
+    # OAuth
     access_token_encrypted: str
     refresh_token_encrypted: Optional[str] = None
-
     email: Optional[str] = None
     token_expiry: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
+
+    # NEW: язык интерфейса ('ru' | 'en')
+    lang: str = Field(default="ru", max_length=2)
 
     @property
     def access_token(self) -> str:
