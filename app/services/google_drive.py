@@ -14,8 +14,9 @@ app/services/google_drive.py
 from __future__ import annotations
 
 import logging
-from typing import Awaitable, Callable, List, Sequence
+from typing import Any, Awaitable, Callable, Dict, List, Sequence
 
+import aiohttp
 import filetype
 import httpx
 
@@ -319,3 +320,36 @@ def _select_reader(mime_type: str):
         "application/vnd.ms-excel": CsvReader(),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ExcelReader(),
     }.get(mime_type)
+
+
+async def list_drive_children(
+    *, access_token: str, folder_id: str = "root", page_size: int = 200
+) -> Dict[str, Any]:
+    """
+    Возвращает элементы текущей папки.
+    items: [{id, name, is_folder: bool}]
+    """
+    url = "https://www.googleapis.com/drive/v3/files"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params = {
+        "q": f"'{folder_id}' in parents and trashed=false",
+        "fields": "files(id,name,mimeType)",
+        "pageSize": page_size,
+        "orderBy": "folder,name",
+        "supportsAllDrives": "true",
+        "includeItemsFromAllDrives": "true",
+    }
+    async with aiohttp.ClientSession() as sess:
+        async with sess.get(url, headers=headers, params=params) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+    items_raw: List[Dict[str, Any]] = data.get("files", [])
+    items = [
+        {
+            "id": it["id"],
+            "name": it["name"],
+            "is_folder": (it.get("mimeType") == "application/vnd.google-apps.folder"),
+        }
+        for it in items_raw
+    ]
+    return {"items": items}
